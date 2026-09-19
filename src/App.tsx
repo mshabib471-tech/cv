@@ -1,0 +1,380 @@
+import React, { useState, useEffect } from 'react';
+import { Navbar } from './components/Navbar';
+import { Hero } from './components/Hero';
+import { CVBuilder } from './components/CVBuilder';
+import { DocumentBuilder } from './components/DocumentBuilder';
+import { TemplateMarketplace } from './components/TemplateMarketplace';
+import { MyDocuments } from './components/MyDocuments';
+import { Dashboard } from './components/Dashboard';
+import { AdminPanel } from './components/AdminPanel';
+import { Footer } from './components/Footer';
+
+import { ActiveView, Language, CVData, DocumentData, DocumentTemplate } from './types';
+import { SAMPLE_CV_ENGLISH, SAMPLE_CV_BANGLA } from './data/sampleCV';
+import { SAMPLE_DOCUMENTS } from './data/sampleDocs';
+import { TEMPLATES_DATA } from './data/templates';
+import { StorageService } from './lib/storage';
+import { useTranslation } from './lib/i18n';
+
+import {
+  FileText,
+  FileSpreadsheet,
+  CheckCircle2,
+  Sparkles,
+  Award,
+  ShieldCheck,
+  Zap,
+  Download,
+  ArrowRight,
+  Layers,
+  HeartHandshake,
+  Briefcase,
+  Printer,
+} from 'lucide-react';
+
+export default function App() {
+  const [activeView, setActiveView] = useState<ActiveView>('home');
+  const [language, setLanguage] = useState<Language>('en');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+
+  // Active CV state
+  const [currentCV, setCurrentCV] = useState<CVData>(() => {
+    const saved = StorageService.getSavedCVs();
+    return saved.length > 0 ? saved[0] : SAMPLE_CV_ENGLISH;
+  });
+
+  // Active Document state
+  const [currentDoc, setCurrentDoc] = useState<DocumentData>(() => {
+    const saved = StorageService.getSavedDocuments();
+    return saved.length > 0 ? saved[0] : SAMPLE_DOCUMENTS[0];
+  });
+
+  const t = useTranslation(language);
+
+  // Sync sample CV language if user switches language and hasn't heavily customized
+  const handleSetLanguage = (lang: Language) => {
+    setLanguage(lang);
+    if (lang === 'bn' && currentCV.language !== 'bn') {
+      setCurrentCV(SAMPLE_CV_BANGLA);
+    } else if (lang === 'en' && currentCV.language !== 'en') {
+      setCurrentCV(SAMPLE_CV_ENGLISH);
+    }
+  };
+
+  const handleSelectTemplate = (template: DocumentTemplate) => {
+    if (
+      template.category === 'CV' ||
+      template.category === 'Resume' ||
+      template.category === 'Marriage CV'
+    ) {
+      setCurrentCV((prev) => ({
+        ...prev,
+        templateId: template.id,
+        language: template.language === 'বাংলা' ? 'bn' : 'en',
+        pagesCount: template.pageCount || 1,
+        design: {
+          ...prev.design,
+          primaryColor: template.accentColor || prev.design.primaryColor,
+          fontFamily:
+            template.language === 'বাংলা' ? 'Noto Sans Bengali' : prev.design.fontFamily,
+          headerStyle: template.id.includes('two-column')
+            ? 'sidebar'
+            : template.id.includes('creative')
+            ? 'banner'
+            : 'modern',
+        },
+      }));
+      setActiveView('cv-builder');
+    } else {
+      // Find matching document template or create
+      const matched = SAMPLE_DOCUMENTS.find((d: DocumentData) => d.id === template.id);
+      if (matched) {
+        setCurrentDoc(matched);
+      } else {
+        setCurrentDoc({
+          id: 'doc-' + Date.now(),
+          title: template.name,
+          category: template.category,
+          language: template.language === 'বাংলা' ? 'bn' : 'en',
+          recipient:
+            template.language === 'বাংলা'
+              ? 'বরাবর\nমহাব্যবস্থাপক মহোদয়\nঢাকা, বাংলাদেশ'
+              : 'To The General Manager\nCompany Name\nCity, Country',
+          date: '19 September 2026',
+          subject:
+            template.language === 'বাংলা'
+              ? `বিষয়: ${template.name} প্রসঙ্গে`
+              : `Subject: Regarding ${template.name}`,
+          salutation: template.language === 'বাংলা' ? 'জনাব,' : 'Dear Sir/Madam,',
+          bodyParagraphs: [
+            template.language === 'বাংলা'
+              ? 'বিনীত নিবেদন এই যে, আমি আপনার প্রতিষ্ঠানে দায়িত্ব পালনে সর্বদা নিষ্ঠাবান ছিলাম।'
+              : 'With reference to the official protocols, I am submitting this formal document.',
+          ],
+          closing:
+            template.language === 'বাংলা'
+              ? 'বিনীত,\nমুহাম্মদ রফিকুল ইসলাম'
+              : 'Sincerely,\nJohn Doe',
+          design: {
+            fontSize: '12pt',
+            fontFamily: template.language === 'বাংলা' ? 'Noto Sans Bengali' : 'Inter',
+            lineHeight: '1.6',
+            showBorder:
+              template.category === 'Experience Certificate' ||
+              template.category === 'Certificate',
+          },
+          lastModified: Date.now(),
+        });
+      }
+      setActiveView('doc-builder');
+    }
+  };
+
+  const handleHeroSearch = (query: string) => {
+    setSearchQuery(query);
+    setActiveView('templates');
+  };
+
+  const handleSelectCategoryFromHero = (category: string) => {
+    setCategoryFilter(category);
+    setActiveView('templates');
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+      {/* Sticky Glass Navbar */}
+      <Navbar
+        activeView={activeView}
+        setActiveView={setActiveView}
+        language={language}
+        setLanguage={handleSetLanguage}
+        onQuickSearch={handleHeroSearch}
+      />
+
+      {/* Main View Router */}
+      <main className="flex-1">
+        {activeView === 'home' && (
+          <div className="space-y-16 lg:space-y-24">
+            {/* Full Glass UI Hero */}
+            <Hero
+              setActiveView={setActiveView}
+              language={language}
+              onSearch={handleHeroSearch}
+              onSelectCategory={handleSelectCategoryFromHero}
+            />
+
+            {/* Featured Templates Showcase Section */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-card border border-blue-200 text-xs font-semibold text-blue-700 mb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Featured Layouts</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+                    Trending Professional Templates
+                  </h2>
+                  <p className="text-slate-600 text-sm mt-1">
+                    Recruiter-approved, ATS-tested formats designed to secure interviews.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setCategoryFilter('All');
+                    setActiveView('templates');
+                  }}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 transition"
+                >
+                  <span>Explore all 35+ templates</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 6 Featured Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {TEMPLATES_DATA.slice(0, 6).map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className="glass-card glass-card-hover rounded-3xl border border-slate-200/90 overflow-hidden flex flex-col justify-between group"
+                  >
+                    <div
+                      className="h-44 p-4 flex flex-col justify-between relative overflow-hidden"
+                      style={{ backgroundColor: tmpl.accentColor }}
+                    >
+                      <div className="flex items-center justify-between z-10">
+                        <span className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider">
+                          {tmpl.category}
+                        </span>
+                        {tmpl.isATS && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-xs">
+                            ATS Friendly
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="bg-white/15 backdrop-blur-xs p-3 rounded-xl border border-white/20 space-y-1.5 z-10">
+                        <div className="h-2 w-24 bg-white rounded-full" />
+                        <div className="h-1.5 w-16 bg-white/70 rounded-full" />
+                      </div>
+
+                      <div className="flex items-center justify-between text-white/90 text-xs font-medium z-10">
+                        <span>{tmpl.language}</span>
+                        <span>{tmpl.pageCount} Page{tmpl.pageCount > 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-base group-hover:text-blue-600 transition">
+                          {tmpl.name}
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                          {tmpl.description}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleSelectTemplate(tmpl)}
+                        className="w-full py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition text-center"
+                      >
+                        {t.useTemplate}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Value Proposition Features Grid */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center max-w-3xl mx-auto mb-12">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+                  Built for Speed, Privacy, and Perfection
+                </h2>
+                <p className="text-slate-600 text-sm mt-2">
+                  Everything you need to produce stunning documents without wrestling with formatting or subscriptions.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="glass-card p-6 rounded-3xl border border-slate-200/80 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-xs">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-base text-slate-900">Word-Style Direct Editing</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Click anywhere on the A4 document to type directly, format text with bold, italic, lists, and watch margins adjust automatically.
+                  </p>
+                </div>
+
+                <div className="glass-card p-6 rounded-3xl border border-slate-200/80 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-base text-slate-900">100% Client-Side Privacy</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Your personal information, photos, and job details stay securely in your browser's local storage. No unwanted cloud tracking.
+                  </p>
+                </div>
+
+                <div className="glass-card p-6 rounded-3xl border border-slate-200/80 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-xs">
+                    <Download className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-base text-slate-900">Pixel-Perfect Vector PDF</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Download crisp, high-resolution A4 PDFs ready for immediate recruiter submission or direct printout without distorted margins.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Bottom Call to Action Banner */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+              <div className="glass-card p-8 sm:p-12 rounded-3xl border border-blue-200/70 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-blue-500/15">
+                <div className="space-y-2 text-center md:text-left">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                    Ready to build your standout CV?
+                  </h3>
+                  <p className="text-blue-100 text-sm max-w-xl">
+                    Choose from 35+ templates or start fresh in our full-featured online Word-like editor today.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setActiveView('cv-builder')}
+                  className="px-8 py-3.5 rounded-2xl bg-white text-blue-600 hover:bg-blue-50 font-bold text-sm shadow-lg shadow-black/10 active:scale-95 transition shrink-0"
+                >
+                  Create Your CV Now →
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeView === 'cv-builder' && (
+          <CVBuilder
+            cv={currentCV}
+            setCV={setCurrentCV}
+            language={language}
+            onBackToHome={() => setActiveView('home')}
+          />
+        )}
+
+        {activeView === 'templates' && (
+          <TemplateMarketplace
+            language={language}
+            onSelectTemplate={handleSelectTemplate}
+            setActiveView={setActiveView}
+            initialSearchQuery={searchQuery}
+            initialCategory={categoryFilter}
+          />
+        )}
+
+        {activeView === 'doc-builder' && (
+          <DocumentBuilder
+            language={language}
+            initialDoc={currentDoc}
+          />
+        )}
+
+        {activeView === 'my-docs' && (
+          <MyDocuments
+            language={language}
+            onEditCV={(cv) => {
+              setCurrentCV(cv);
+              setActiveView('cv-builder');
+            }}
+            onEditDoc={(doc) => {
+              setCurrentDoc(doc);
+              setActiveView('doc-builder');
+            }}
+            setActiveView={setActiveView}
+          />
+        )}
+
+        {activeView === 'dashboard' && (
+          <Dashboard
+            language={language}
+            setActiveView={setActiveView}
+            onEditCV={(cv) => {
+              setCurrentCV(cv);
+              setActiveView('cv-builder');
+            }}
+            onEditDoc={(doc) => {
+              setCurrentDoc(doc);
+              setActiveView('doc-builder');
+            }}
+          />
+        )}
+
+        {activeView === 'admin' && <AdminPanel language={language} />}
+      </main>
+
+      {/* Global Glass Footer */}
+      <Footer setActiveView={setActiveView} language={language} />
+    </div>
+  );
+}
