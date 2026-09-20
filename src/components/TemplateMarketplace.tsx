@@ -18,6 +18,7 @@ import {
 import { DocumentTemplate, TemplateCategory, Language, ActiveView, CVData } from '../types';
 import { TEMPLATES_DATA } from '../data/templates';
 import { useTranslation } from '../lib/i18n';
+import { TemplateLivePreview } from './TemplateLivePreview';
 
 interface TemplateMarketplaceProps {
   language: Language;
@@ -233,45 +234,45 @@ export const TemplateMarketplace: React.FC<TemplateMarketplaceProps> = ({
                   key={template.id}
                   className="glass-card glass-card-hover rounded-2xl border border-slate-200/90 overflow-hidden flex flex-col justify-between group"
                 >
-                  {/* Top Preview Canvas */}
-                  <div
-                    className="h-44 p-4 flex flex-col justify-between relative overflow-hidden transition-all"
-                    style={{
-                      backgroundColor: template.accentColor || '#2563EB',
-                    }}
-                  >
-                    {/* Top badging */}
-                    <div className="flex items-center justify-between z-10">
-                      <span className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider">
+                  {/* Top Preview Canvas: Real Live CV Preview */}
+                  <div className="p-3.5 bg-gradient-to-b from-slate-100/70 to-slate-50/50 border-b border-slate-200/70 flex items-center justify-center relative overflow-hidden group-hover:bg-blue-50/20 transition-colors">
+                    <div className="w-full max-w-[180px] transform group-hover:scale-105 transition-transform duration-300 drop-shadow-sm">
+                      <TemplateLivePreview
+                        templateId={template.id}
+                        category={template.category}
+                        style={template.style}
+                        accentColor={template.accentColor}
+                        name={template.name}
+                        language={template.language}
+                        isATS={template.isATS}
+                      />
+                    </div>
+
+                    {/* Top Badges */}
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1 z-10">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-wider">
                         {template.category}
                       </span>
+                    </div>
+
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
                       {template.isATS && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-xs">
-                          ATS Friendly
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold shadow-xs">
+                          ATS 99%
                         </span>
                       )}
                     </div>
 
-                    {/* Faux Document Graphic */}
-                    <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/20 space-y-2 z-10">
-                      <div className="h-2.5 w-24 bg-white rounded-full" />
-                      <div className="h-1.5 w-16 bg-white/70 rounded-full" />
-                      <div className="pt-1 space-y-1">
-                        <div className="h-1 w-full bg-white/50 rounded-full" />
-                        <div className="h-1 w-4/5 bg-white/50 rounded-full" />
-                      </div>
+                    {/* Quick Preview Hover Action */}
+                    <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setPreviewTemplate(template)}
+                        className="px-3 py-1.5 rounded-xl bg-white text-slate-800 text-xs font-semibold shadow-md flex items-center gap-1 hover:bg-slate-50 hover:text-blue-600 transition cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Preview</span>
+                      </button>
                     </div>
-
-                    {/* Bottom Metadata */}
-                    <div className="flex items-center justify-between text-white/90 text-xs font-medium z-10">
-                      <span>{template.language}</span>
-                      <span>
-                        {template.pageCount} Page{template.pageCount > 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    {/* Background subtle glowing circle */}
-                    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
                   </div>
 
                   {/* Card Body */}

@@ -15,6 +15,7 @@ import { SAMPLE_DOCUMENTS } from './data/sampleDocs';
 import { TEMPLATES_DATA } from './data/templates';
 import { StorageService } from './lib/storage';
 import { useTranslation } from './lib/i18n';
+import { TemplateLivePreview } from './components/TemplateLivePreview';
 
 import {
   FileText,
@@ -197,31 +198,29 @@ export default function App() {
                 {TEMPLATES_DATA.slice(0, 6).map((tmpl) => (
                   <div
                     key={tmpl.id}
-                    className="glass-card glass-card-hover rounded-3xl border border-slate-200/90 overflow-hidden flex flex-col justify-between group"
+                    className="glass-card glass-card-hover rounded-3xl border border-slate-200/90 overflow-hidden flex flex-col justify-between group hover:shadow-xl hover:shadow-blue-500/10 transition-all"
                   >
-                    <div
-                      className="h-44 p-4 flex flex-col justify-between relative overflow-hidden"
-                      style={{ backgroundColor: tmpl.accentColor }}
-                    >
-                      <div className="flex items-center justify-between z-10">
-                        <span className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider">
+                    <div className="p-4 bg-slate-50/80 border-b border-slate-200/80 flex items-center justify-center relative overflow-hidden">
+                      <div className="w-full max-w-[200px] transform group-hover:scale-105 transition-transform duration-300">
+                        <TemplateLivePreview
+                          templateId={tmpl.id}
+                          category={tmpl.category}
+                          style={tmpl.style}
+                          accentColor={tmpl.accentColor}
+                          name={tmpl.name}
+                          language={tmpl.language}
+                          isATS={tmpl.isATS}
+                        />
+                      </div>
+                      <div className="absolute top-3 right-3 flex flex-col gap-1 z-10">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider">
                           {tmpl.category}
                         </span>
                         {tmpl.isATS && (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-xs">
-                            ATS Friendly
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold shadow-xs">
+                            ATS 99%
                           </span>
                         )}
-                      </div>
-
-                      <div className="bg-white/15 backdrop-blur-xs p-3 rounded-xl border border-white/20 space-y-1.5 z-10">
-                        <div className="h-2 w-24 bg-white rounded-full" />
-                        <div className="h-1.5 w-16 bg-white/70 rounded-full" />
-                      </div>
-
-                      <div className="flex items-center justify-between text-white/90 text-xs font-medium z-10">
-                        <span>{tmpl.language}</span>
-                        <span>{tmpl.pageCount} Page{tmpl.pageCount > 1 ? 's' : ''}</span>
                       </div>
                     </div>
 

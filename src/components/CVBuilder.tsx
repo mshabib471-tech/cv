@@ -20,6 +20,7 @@ import { StorageService } from '../lib/storage';
 import { generateAndDownloadPDF, printDocument, downloadAsDocx } from '../lib/pdf';
 import { TEMPLATES_DATA } from '../data/templates';
 import { useTranslation } from '../lib/i18n';
+import { TemplateLivePreview } from './TemplateLivePreview';
 
 interface CVBuilderProps {
   cv: CVData;
@@ -299,23 +300,26 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
                 <div
                   key={tmpl.id}
                   onClick={() => handleSelectTemplate(tmpl)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
                     cv.templateId === tmpl.id
                       ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20 shadow-md'
                       : 'border-slate-200 hover:border-blue-300 hover:shadow-md bg-white'
                   }`}
                 >
-                  <div
-                    className="w-full h-32 rounded-xl mb-3 flex flex-col justify-between p-3 text-white relative overflow-hidden shadow-inner"
-                    style={{ backgroundColor: tmpl.accentColor }}
-                  >
-                    <div className="text-xs font-bold uppercase tracking-wider">{tmpl.style}</div>
-                    <div className="space-y-1">
-                      <div className="h-2 w-20 bg-white/90 rounded-full" />
-                      <div className="h-1.5 w-14 bg-white/60 rounded-full" />
+                  <div className="w-full aspect-[210/297] max-h-48 rounded-xl mb-3 flex items-center justify-center p-2 bg-slate-50 border border-slate-200/80 overflow-hidden relative shadow-inner group">
+                    <div className="w-full max-w-[150px] transform group-hover:scale-105 transition-transform duration-200">
+                      <TemplateLivePreview
+                        templateId={tmpl.id}
+                        category={tmpl.category}
+                        style={tmpl.style}
+                        accentColor={tmpl.accentColor}
+                        name={tmpl.name}
+                        language={tmpl.language}
+                        isATS={tmpl.isATS}
+                      />
                     </div>
                     {tmpl.isATS && (
-                      <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-[10px] font-bold">
+                      <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold shadow-xs">
                         ATS 99%
                       </span>
                     )}
