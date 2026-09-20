@@ -22,6 +22,9 @@ import {
   Square,
 } from 'lucide-react';
 import { CVData, ExperienceItem, EducationItem, ReferenceItem, PersonalInfo } from '../types';
+import { CorporateTwoColumnCV } from './templates/CorporateTwoColumnCV';
+import { MinimalATSCV } from './templates/MinimalATSCV';
+import { MarriageCV } from './templates/MarriageCV';
 
 interface A4DocumentProps {
   cv: CVData;
@@ -273,6 +276,23 @@ export const A4Document: React.FC<A4DocumentProps> = ({
       ? 'rounded-none'
       : 'rounded-2xl';
 
+  // Specialized layout flags
+  const isMarriage =
+    cv.category === 'Marriage CV' ||
+    cv.templateId?.includes('marriage') ||
+    cv.design?.headerStyle === 'marriage';
+
+  const isTwoColumn =
+    cv.templateId?.includes('corporate') ||
+    cv.templateId?.includes('two-column') ||
+    cv.design?.headerStyle === 'sidebar';
+
+  const isMinimalATS =
+    cv.templateId?.includes('ats') ||
+    cv.templateId === 'cv-minimal' ||
+    cv.design?.headerStyle === 'minimal' ||
+    cv.isATS;
+
   return (
     <div
       id="cv-printable-document-container"
@@ -302,8 +322,28 @@ export const A4Document: React.FC<A4DocumentProps> = ({
             backgroundColor: '#ffffff',
           }}
         >
-          {/* Main Document Content */}
-          <div className={`${marginClass} flex-1 flex flex-col`}>
+          {isTwoColumn ? (
+            <CorporateTwoColumnCV
+              cv={cv}
+              isEditable={isEditable}
+              onUpdateField={onUpdateField}
+            />
+          ) : isMarriage ? (
+            <MarriageCV
+              cv={cv}
+              isEditable={isEditable}
+              onUpdateField={onUpdateField}
+            />
+          ) : isMinimalATS ? (
+            <MinimalATSCV
+              cv={cv}
+              isEditable={isEditable}
+              onUpdateField={onUpdateField}
+            />
+          ) : (
+            <>
+              {/* Main Document Content */}
+              <div className={`${marginClass} flex-1 flex flex-col`}>
             {/* Top Header - Rendered on Page 1 */}
             {pageNum === 1 && (
               <>
@@ -1233,13 +1273,15 @@ export const A4Document: React.FC<A4DocumentProps> = ({
             </div>
           </div>
 
-          {/* Footer page stamp */}
-          <div className="px-10 py-3 text-[10px] text-slate-400 border-t border-slate-100 flex justify-between items-center print:border-none">
-            <span>SmartCV Online Document Maker</span>
-            <span>
-              Page {pageNum} of {pages.length}
-            </span>
-          </div>
+              {/* Footer page stamp */}
+              <div className="px-10 py-3 text-[10px] text-slate-400 border-t border-slate-100 flex justify-between items-center print:border-none">
+                <span>SmartCV Online Document Maker</span>
+                <span>
+                  Page {pageNum} of {pages.length}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       ))}
     </div>

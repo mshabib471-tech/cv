@@ -53,6 +53,50 @@ export default function App() {
 
   const t = useTranslation(language);
 
+  // Initialize view from URL hash and listen to browser popstate (back/forward)
+  useEffect(() => {
+    const validViews: ActiveView[] = [
+      'home',
+      'cv-builder',
+      'doc-builder',
+      'templates',
+      'my-docs',
+      'dashboard',
+      'admin',
+    ];
+
+    const initialHash = window.location.hash.replace('#', '') as ActiveView;
+    if (initialHash && validViews.includes(initialHash)) {
+      setActiveView(initialHash);
+      window.history.replaceState({ view: initialHash }, '', `#${initialHash}`);
+    } else {
+      window.history.replaceState({ view: 'home' }, '', '#home');
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const stateView = event.state?.view as ActiveView | undefined;
+      const hashView = window.location.hash.replace('#', '') as ActiveView;
+      const targetView = stateView || (validViews.includes(hashView) ? hashView : 'home');
+      setActiveView(targetView);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Centralized navigation that pushes state to browser history
+  const navigateTo = (view: ActiveView, replace = false) => {
+    if (view === activeView) return;
+    setActiveView(view);
+    const hash = `#${view}`;
+    if (replace) {
+      window.history.replaceState({ view }, '', hash);
+    } else {
+      window.history.pushState({ view }, '', hash);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Sync sample CV language if user switches language and hasn't heavily customized
   const handleSetLanguage = (lang: Language) => {
     setLanguage(lang);
@@ -69,24 +113,41 @@ export default function App() {
       template.category === 'Resume' ||
       template.category === 'Marriage CV'
     ) {
+      const isMarriage =
+        template.category === 'Marriage CV' || template.id.includes('marriage');
+      const isSidebar =
+        template.id.includes('two-column') || template.id.includes('corporate');
+      const isMinimalATS =
+        template.id.includes('ats') || template.isATS || template.id.includes('minimal');
+      const isBanner =
+        template.id.includes('creative') || template.id.includes('modern-blue');
+
       setCurrentCV((prev) => ({
         ...prev,
         templateId: template.id,
+        category: template.category,
         language: template.language === 'বাংলা' ? 'bn' : 'en',
         pagesCount: template.pageCount || 1,
+        isATS: template.isATS || prev.isATS,
         design: {
           ...prev.design,
-          primaryColor: template.accentColor || prev.design.primaryColor,
+          primaryColor:
+            template.accentColor ||
+            (isMarriage ? '#E11D48' : isSidebar ? '#1E3A8A' : prev.design.primaryColor),
           fontFamily:
             template.language === 'বাংলা' ? 'Noto Sans Bengali' : prev.design.fontFamily,
-          headerStyle: template.id.includes('two-column')
+          headerStyle: isMarriage
+            ? 'marriage'
+            : isSidebar
             ? 'sidebar'
-            : template.id.includes('creative')
+            : isMinimalATS
+            ? 'minimal'
+            : isBanner
             ? 'banner'
             : 'modern',
         },
       }));
-      setActiveView('cv-builder');
+      navigateTo('cv-builder');
     } else {
       // Find matching document template or create
       const matched = SAMPLE_DOCUMENTS.find((d: DocumentData) => d.id === template.id);
@@ -128,18 +189,18 @@ export default function App() {
           lastModified: Date.now(),
         });
       }
-      setActiveView('doc-builder');
+      navigateTo('doc-builder');
     }
   };
 
   const handleHeroSearch = (query: string) => {
     setSearchQuery(query);
-    setActiveView('templates');
+    navigateTo('templates');
   };
 
   const handleSelectCategoryFromHero = (category: string) => {
     setCategoryFilter(category);
-    setActiveView('templates');
+    navigateTo('templates');
   };
 
   return (
@@ -147,7 +208,7 @@ export default function App() {
       {/* Sticky Glass Navbar */}
       <Navbar
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={navigateTo}
         language={language}
         setLanguage={handleSetLanguage}
         onQuickSearch={handleHeroSearch}
@@ -159,7 +220,8 @@ export default function App() {
           <div className="space-y-16 lg:space-y-24">
             {/* Full Glass UI Hero */}
             <Hero
-              setActiveView={setActiveView}
+              setActiveView={navigateTo}
+              onSelectTemplate={handleSelectTemplate}
               language={language}
               onSearch={handleHeroSearch}
               onSelectCategory={handleSelectCategoryFromHero}
@@ -184,7 +246,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     setCategoryFilter('All');
-                    setActiveView('templates');
+                    navigateTo('templates');
                   }}
                   className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 transition"
                 >
@@ -303,7 +365,7 @@ export default function App() {
                 </div>
 
                 <button
-                  onClick={() => setActiveView('cv-builder')}
+                  onClick={() => navigateTo('cv-builder')}
                   className="px-8 py-3.5 rounded-2xl bg-white text-blue-600 hover:bg-blue-50 font-bold text-sm shadow-lg shadow-black/10 active:scale-95 transition shrink-0"
                 >
                   Create Your CV Now →
@@ -318,7 +380,7 @@ export default function App() {
             cv={currentCV}
             setCV={setCurrentCV}
             language={language}
-            onBackToHome={() => setActiveView('home')}
+            onBackToHome={() => navigateTo('home')}
           />
         )}
 
@@ -326,7 +388,7 @@ export default function App() {
           <TemplateMarketplace
             language={language}
             onSelectTemplate={handleSelectTemplate}
-            setActiveView={setActiveView}
+            setActiveView={navigateTo}
             initialSearchQuery={searchQuery}
             initialCategory={categoryFilter}
           />
@@ -344,27 +406,27 @@ export default function App() {
             language={language}
             onEditCV={(cv) => {
               setCurrentCV(cv);
-              setActiveView('cv-builder');
+              navigateTo('cv-builder');
             }}
             onEditDoc={(doc) => {
               setCurrentDoc(doc);
-              setActiveView('doc-builder');
+              navigateTo('doc-builder');
             }}
-            setActiveView={setActiveView}
+            setActiveView={navigateTo}
           />
         )}
 
         {activeView === 'dashboard' && (
           <Dashboard
             language={language}
-            setActiveView={setActiveView}
+            setActiveView={navigateTo}
             onEditCV={(cv) => {
               setCurrentCV(cv);
-              setActiveView('cv-builder');
+              navigateTo('cv-builder');
             }}
             onEditDoc={(doc) => {
               setCurrentDoc(doc);
-              setActiveView('doc-builder');
+              navigateTo('doc-builder');
             }}
           />
         )}
@@ -374,7 +436,7 @@ export default function App() {
 
       {/* Global Glass Footer (Hidden during full-screen CV & Doc editing) */}
       {activeView !== 'cv-builder' && activeView !== 'doc-builder' && (
-        <Footer setActiveView={setActiveView} language={language} />
+        <Footer setActiveView={navigateTo} language={language} />
       )}
     </div>
   );

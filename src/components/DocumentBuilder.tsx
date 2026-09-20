@@ -175,7 +175,7 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
           </button>
 
           <button
-            onClick={printDocument}
+            onClick={() => printDocument(`${doc.title}_SmartDoc`)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition"
           >
             <Printer className="w-3.5 h-3.5" />

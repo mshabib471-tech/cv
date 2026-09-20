@@ -101,8 +101,19 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
     setIsGeneratingPDF(true);
     setPdfSuccessNotice(false);
     try {
-      const cleanName = (cv.fullName || 'SmartCV').replace(/[^a-zA-Z0-9_\-\u0980-\u09FF]/g, '_');
-      const filename = `${cleanName}_Resume.pdf`;
+      const isMarriage = cv.category === 'Marriage CV' || cv.templateId?.includes('marriage');
+      const cleanName = (cv.fullName || 'Professional')
+        .trim()
+        .replace(/[\s\W]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'SmartCV';
+      const docType = isMarriage
+        ? 'Marriage_Biodata'
+        : cv.templateId?.includes('corporate')
+        ? 'Executive_Resume'
+        : cv.templateId?.includes('ats')
+        ? 'ATS_Resume'
+        : 'Resume';
+      const filename = `${cleanName}_${docType}.pdf`;
       const success = await generateAndDownloadPDF('cv-printable-document-container', filename);
       if (success) {
         setPdfSuccessNotice(true);
@@ -139,7 +150,7 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
         isGeneratingPDF={isGeneratingPDF}
         onDownloadPDF={handleDownloadPDF}
         onDownloadDocx={handleDownloadDocx}
-        onPrint={printDocument}
+        onPrint={() => printDocument(`${cv.fullName || 'SmartCV'}_Resume`)}
         onAddPage={handleAddPage}
         onRemovePage={handleRemovePage}
         currentPage={1}

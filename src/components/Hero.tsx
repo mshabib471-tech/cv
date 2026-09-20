@@ -12,15 +12,17 @@ import {
   ScrollText,
   Eye,
 } from 'lucide-react';
-import { ActiveView, Language } from '../types';
+import { ActiveView, Language, DocumentTemplate } from '../types';
 import { useTranslation } from '../lib/i18n';
 import { TemplateLivePreview } from './TemplateLivePreview';
+import { TEMPLATES_DATA } from '../data/templates';
 
 interface HeroProps {
   setActiveView: (view: ActiveView) => void;
   language: Language;
   onSearch: (query: string) => void;
   onSelectCategory?: (category: string) => void;
+  onSelectTemplate?: (template: DocumentTemplate) => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
@@ -28,9 +30,19 @@ export const Hero: React.FC<HeroProps> = ({
   language,
   onSearch,
   onSelectCategory,
+  onSelectTemplate,
 }) => {
   const t = useTranslation(language);
   const [query, setQuery] = useState('');
+
+  const handleCardClick = (templateId: string, fallbackView: ActiveView = 'cv-builder') => {
+    const tmpl = TEMPLATES_DATA.find((t) => t.id === templateId);
+    if (tmpl && onSelectTemplate) {
+      onSelectTemplate(tmpl);
+    } else {
+      setActiveView(fallbackView);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,7 +179,7 @@ export const Hero: React.FC<HeroProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
             {/* Card 1: Modern Blue CV */}
             <div
-              onClick={() => setActiveView('cv-builder')}
+              onClick={() => handleCardClick('cv-modern-blue', 'cv-builder')}
               className="glass-card glass-card-hover p-2.5 sm:p-3 rounded-2xl cursor-pointer border border-blue-200/80 group flex flex-col justify-between hover:shadow-xl hover:shadow-blue-500/15 hover:border-blue-400 transition-all"
             >
               <div className="w-full relative overflow-hidden rounded-xl group-hover:scale-[1.02] transition-transform duration-200">
@@ -197,7 +209,7 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Card 2: Corporate 2-Column CV */}
             <div
-              onClick={() => setActiveView('cv-builder')}
+              onClick={() => handleCardClick('cv-corporate', 'cv-builder')}
               className="glass-card glass-card-hover p-2.5 sm:p-3 rounded-2xl cursor-pointer border border-indigo-200/80 group flex flex-col justify-between hover:shadow-xl hover:shadow-indigo-500/15 hover:border-indigo-400 transition-all"
             >
               <div className="w-full relative overflow-hidden rounded-xl group-hover:scale-[1.02] transition-transform duration-200">
@@ -227,7 +239,7 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Card 3: Professional Cover Letter */}
             <div
-              onClick={() => setActiveView('doc-builder')}
+              onClick={() => handleCardClick('doc-cover-letter', 'doc-builder')}
               className="glass-card glass-card-hover p-2.5 sm:p-3 rounded-2xl cursor-pointer border border-cyan-200/80 group flex flex-col justify-between hover:shadow-xl hover:shadow-cyan-500/15 hover:border-cyan-400 transition-all"
             >
               <div className="w-full relative overflow-hidden rounded-xl group-hover:scale-[1.02] transition-transform duration-200">
@@ -256,7 +268,7 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Card 4: Experience Certificate */}
             <div
-              onClick={() => setActiveView('doc-builder')}
+              onClick={() => handleCardClick('doc-experience-cert', 'doc-builder')}
               className="glass-card glass-card-hover p-2.5 sm:p-3 rounded-2xl cursor-pointer border border-amber-200/80 group flex flex-col justify-between hover:shadow-xl hover:shadow-amber-500/15 hover:border-amber-400 transition-all"
             >
               <div className="w-full relative overflow-hidden rounded-xl group-hover:scale-[1.02] transition-transform duration-200">
@@ -285,7 +297,7 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Card 5: Marriage Biodata */}
             <div
-              onClick={() => setActiveView('templates')}
+              onClick={() => handleCardClick('cv-marriage-bn', 'cv-builder')}
               className="glass-card glass-card-hover p-2.5 sm:p-3 rounded-2xl cursor-pointer border border-pink-200/80 group flex flex-col justify-between hover:shadow-xl hover:shadow-pink-500/15 hover:border-pink-400 transition-all"
             >
               <div className="w-full relative overflow-hidden rounded-xl group-hover:scale-[1.02] transition-transform duration-200">
@@ -314,7 +326,7 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Card 6: ATS Friendly Minimal CV */}
             <div
-              onClick={() => setActiveView('cv-builder')}
+              onClick={() => handleCardClick('cv-ats-friendly', 'cv-builder')}
               className="glass-card glass-card-hover p-2.5 sm:p-3 rounded-2xl cursor-pointer border border-emerald-200/80 group flex flex-col justify-between hover:shadow-xl hover:shadow-emerald-500/15 hover:border-emerald-400 transition-all"
             >
               <div className="w-full relative overflow-hidden rounded-xl group-hover:scale-[1.02] transition-transform duration-200">

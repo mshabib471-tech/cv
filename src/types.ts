@@ -31,9 +31,11 @@ export interface EducationItem {
   id: string;
   degree: string;
   institution: string;
-  boardOrUniversity: string;
-  subject: string;
-  cgpaOrGpa: string;
+  boardOrUniversity?: string;
+  board?: string;
+  subject?: string;
+  cgpaOrGpa?: string;
+  grade?: string;
   passingYear: string;
 }
 
@@ -81,6 +83,9 @@ export interface PersonalInfo {
   bloodGroup: string;
   permanentAddress: string;
   presentAddress: string;
+  height?: string;
+  complexion?: string;
+  weight?: string;
   nidOrPassport?: string;
 }
 
@@ -96,8 +101,10 @@ export interface CVData {
   id: string;
   title: string;
   templateId: string;
+  category?: string;
   language: Language;
   lastModified: number;
+  isATS?: boolean;
 
   // Header / Contact
   fullName: string;
@@ -140,7 +147,7 @@ export interface CVData {
     lineHeight: 'tight' | 'normal' | 'relaxed';
     pageMargin: 'compact' | 'normal' | 'spacious';
     sectionSpacing: 'compact' | 'normal' | 'spacious';
-    headerStyle: 'modern' | 'classic' | 'minimal' | 'banner' | 'sidebar';
+    headerStyle: 'modern' | 'classic' | 'minimal' | 'banner' | 'sidebar' | 'marriage';
   };
 
   pagesCount: number;

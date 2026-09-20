@@ -139,11 +139,28 @@ export async function generateAndDownloadPDF(
     }
 
     const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
+    
+    // Set document title dynamically so browser print/save defaults to this clean filename
+    const previousTitle = document.title;
+    document.title = cleanFilename.replace(/\.pdf$/i, '');
+    
     pdf.save(cleanFilename);
+    
+    // Restore document title after short delay
+    setTimeout(() => {
+      document.title = previousTitle;
+    }, 1000);
+
     return true;
   } catch (error) {
     console.error('PDF Generation failed, triggering print fallback:', error);
+    const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
+    const previousTitle = document.title;
+    document.title = cleanFilename.replace(/\.pdf$/i, '');
     window.print();
+    setTimeout(() => {
+      document.title = previousTitle;
+    }, 2000);
     return false;
   } finally {
     if (sandbox && sandbox.parentNode) {
@@ -152,8 +169,13 @@ export async function generateAndDownloadPDF(
   }
 }
 
-export function printDocument(): void {
+export function printDocument(customTitle = 'SmartCV_Document'): void {
+  const previousTitle = document.title;
+  document.title = customTitle.replace(/[\s\W]+/g, '_');
   window.print();
+  setTimeout(() => {
+    document.title = previousTitle;
+  }, 2000);
 }
 
 export function downloadAsDocx(title: string, htmlContent: string): void {
