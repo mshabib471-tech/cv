@@ -373,8 +373,10 @@ export default function App() {
         {activeView === 'admin' && <AdminPanel language={language} />}
       </main>
 
-      {/* Global Glass Footer */}
-      <Footer setActiveView={setActiveView} language={language} />
+      {/* Global Glass Footer (Hidden during full-screen CV & Doc editing) */}
+      {activeView !== 'cv-builder' && activeView !== 'doc-builder' && (
+        <Footer setActiveView={setActiveView} language={language} />
+      )}
     </div>
   );
 }

@@ -1,17 +1,21 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+/**
+ * Robust, pixel-perfect PDF generator for A4 CVs and documents.
+ * Renders each A4 page into an isolated off-screen sandbox to avoid
+ * viewport clipping, transform scale offsets, and blank white screenshots.
+ */
 export async function generateAndDownloadPDF(
   elementIdOrSelector: string,
   filename = 'SmartCV_Document.pdf'
 ): Promise<boolean> {
-  // Try to find the target element
+  // 1. Locate the target element
   let element = document.getElementById(elementIdOrSelector);
   if (!element) {
     element = document.querySelector<HTMLElement>(elementIdOrSelector);
   }
   if (!element) {
-    // Fallback search
     element =
       document.querySelector<HTMLElement>('#cv-printable-document-container') ||
       document.querySelector<HTMLElement>('#general-doc-printable') ||
@@ -24,7 +28,7 @@ export async function generateAndDownloadPDF(
     return false;
   }
 
-  // Find all A4 pages to render (supports multi-page CVs & documents)
+  // 2. Identify all A4 pages to render
   let pages: HTMLElement[] = [];
   if (element.classList.contains('a4-page')) {
     pages = [element];
@@ -35,26 +39,27 @@ export async function generateAndDownloadPDF(
     }
   }
 
-  // Find parent container with scale transform if any
-  const scaleContainers = Array.from(
-    document.querySelectorAll<HTMLElement>('.printable-document-container, [style*="transform"]')
-  );
-  const savedTransforms = new Map<HTMLElement, string>();
+  // 3. Create an isolated offscreen sandbox to prevent layout shift & white canvas bugs
+  const sandbox = document.createElement('div');
+  sandbox.id = 'pdf-isolated-export-sandbox';
+  sandbox.style.position = 'fixed';
+  sandbox.style.left = '-12000px';
+  sandbox.style.top = '0';
+  sandbox.style.width = '794px'; // 210mm at standard 96 DPI
+  sandbox.style.backgroundColor = '#ffffff';
+  sandbox.style.zIndex = '-99999';
+  sandbox.style.opacity = '1';
+  sandbox.style.pointerEvents = 'none';
+  sandbox.style.margin = '0';
+  sandbox.style.padding = '0';
+  sandbox.style.overflow = 'visible';
+  document.body.appendChild(sandbox);
 
   try {
-    // Wait for web fonts (e.g. Noto Sans Bengali, Inter, Poppins) to load
+    // Ensure all web fonts are loaded
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
     }
-
-    // Temporarily reset transforms so html2canvas computes pixel-perfect 1:1 coordinates
-    scaleContainers.forEach((container) => {
-      savedTransforms.set(container, container.style.transform);
-      container.style.transform = 'none';
-    });
-
-    // Small delay for DOM reflow
-    await new Promise((resolve) => setTimeout(resolve, 60));
 
     // Initialize A4 Portrait jsPDF (210mm x 297mm)
     const pdf = new jsPDF({
@@ -68,29 +73,63 @@ export async function generateAndDownloadPDF(
     const pdfHeight = 297; // mm
 
     for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
+      const origPage = pages[i];
 
-      const canvas = await html2canvas(page, {
-        scale: 2, // High resolution crisp output
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          // Reset any transforms and box-shadow in cloned document
-          const clonedScaled = clonedDoc.querySelectorAll<HTMLElement>('[style*="transform"]');
-          clonedScaled.forEach((el) => {
-            el.style.transform = 'none';
-          });
-          const clonedPages = clonedDoc.querySelectorAll<HTMLElement>('.a4-page');
-          clonedPages.forEach((p) => {
-            p.style.boxShadow = 'none';
-            p.style.margin = '0 auto';
-          });
-        },
+      // Clone page into sandbox
+      const clonedPage = origPage.cloneNode(true) as HTMLElement;
+
+      // Remove non-printable interactive controls (add buttons, delete icons, file inputs)
+      const nonPrintables = clonedPage.querySelectorAll<HTMLElement>(
+        'button, .no-print, [data-html2canvas-ignore], input, .interactive-edit-control'
+      );
+      nonPrintables.forEach((el) => el.remove());
+
+      // Disable contentEditable on cloned element so focus rings or carets don't render
+      const editables = clonedPage.querySelectorAll<HTMLElement>('[contenteditable]');
+      editables.forEach((el) => {
+        el.removeAttribute('contenteditable');
+        el.style.outline = 'none';
+        el.style.border = 'none';
+        el.style.boxShadow = 'none';
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      // Normalize geometry for 794px A4 pixel canvas
+      clonedPage.style.transform = 'none';
+      clonedPage.style.webkitTransform = 'none';
+      clonedPage.style.boxShadow = 'none';
+      clonedPage.style.margin = '0 auto';
+      clonedPage.style.width = '794px';
+      clonedPage.style.minHeight = '1123px';
+      clonedPage.style.height = '1123px';
+      clonedPage.style.position = 'relative';
+      clonedPage.style.backgroundColor = '#ffffff';
+      clonedPage.style.overflow = 'hidden';
+
+      sandbox.innerHTML = '';
+      sandbox.appendChild(clonedPage);
+
+      // Brief delay for styles and DOM attachment to settle
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      const pageHeight = clonedPage.offsetHeight || 1123;
+
+      const canvas = await html2canvas(clonedPage, {
+        scale: 2, // 2x retina crisp quality
+        useCORS: true,
+        allowTaint: false, // Disallow taint to avoid toDataURL security errors
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: pageHeight,
+        windowWidth: 794,
+        windowHeight: pageHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
       if (i > 0) {
         pdf.addPage('a4', 'portrait');
@@ -103,15 +142,13 @@ export async function generateAndDownloadPDF(
     pdf.save(cleanFilename);
     return true;
   } catch (error) {
-    console.error('PDF Generation failed, invoking print fallback:', error);
-    // Provide graceful fallback
+    console.error('PDF Generation failed, triggering print fallback:', error);
     window.print();
     return false;
   } finally {
-    // Restore original zoom transforms
-    savedTransforms.forEach((origTransform, container) => {
-      container.style.transform = origTransform;
-    });
+    if (sandbox && sandbox.parentNode) {
+      sandbox.parentNode.removeChild(sandbox);
+    }
   }
 }
 

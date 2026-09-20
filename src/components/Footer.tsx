@@ -24,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveView, language }) => {
   const t = useTranslation(language);
 
   return (
-    <footer className="glass-panel border-t border-slate-200/80 mt-auto text-xs text-slate-600">
+    <footer className="glass-panel border-t border-slate-200/80 mt-auto text-xs text-slate-600 no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand Info */}
