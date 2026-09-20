@@ -236,5 +236,110 @@ export const sampleBanglaCV: CVData = {
   },
 };
 
+export const SAMPLE_CV_HABIBUR: CVData = {
+  ...sampleCV,
+  id: 'doc-habibur-rahman-2page',
+  title: 'Resume of Habibur Rahman',
+  templateId: 'cv-bangladeshi-standard-2page',
+  category: 'CV',
+  language: 'en',
+  pagesCount: 2,
+  fullName: 'Habibur Rahman',
+  professionalTitle: 'Business Studies Graduate',
+  photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+  photoShape: 'square',
+  phone: '01868461577',
+  email: 'mshabib471@gmail.com',
+  address: 'North Hashimpur Syedabad,\nGachbaria (4381) Chandanish,Chattogram.',
+  website: '',
+  linkedin: '',
+  github: '',
+  careerObjective:
+    'To pursue a challenging career at top-level management and utilize my skills and experiences to make extensive contribution to company’s long-term goal and to obtain a position in an organization where there is an opportunity to work in an environment of excellence and passion and where honesty, commitment, hard work and performances are the key factors of career development.',
+  skills: [
+    'Ability to work in a group.',
+    'Ability to work under challenging, stressed conditions and long hours always approachable to suggestion, advice and guidance.',
+    'Quick adjustment with surrounding and competent to cope with the sudden change of environment.',
+    'Willing to learn and open to new ideas.',
+    'Ability to handle multiple tasks and work under pressure.',
+  ],
+  computerSkills: [
+    'Operating System : Windows , 2007,2008,2010, XP',
+    'Application packages : MS Word, MS Excel, MS Power Point.',
+    'Internet : Internet Browsing, E-Mail Writing, Social media.',
+  ],
+  interpersonalSkills: [
+    'Ability to work in a group.',
+    'Ability to work under challenging, stressed conditions and long hours always approachable to suggestion, advice and guidance.',
+    'Quick adjustment with surrounding and competent to cope with the sudden change of environment.',
+    'Willing to learn and open to new ideas.',
+    'Ability to handle multiple tasks and work under pressure.',
+  ],
+  languages: [
+    'Bengali : Excellent listening, speaking, reading and Writing abilities.',
+    'English : Fair listening, speaking, reading and Writing abilities.',
+  ],
+  education: [
+    {
+      id: 'edu-1',
+      degree: 'Bachelor of Business Studies BBS (Degree)',
+      institution: 'Gachbaria Govt College.',
+      boardOrUniversity: 'National University',
+      subject: 'BBS',
+      cgpaOrGpa: 'Running',
+      passingYear: '-',
+    },
+    {
+      id: 'edu-2',
+      degree: 'Higher Secondary Certificate Examination (H.S.C)',
+      institution: 'Barama Degree College',
+      boardOrUniversity: 'Chattogram',
+      subject: 'Business Studies',
+      cgpaOrGpa: '2.25(out of 5.00 scales)',
+      passingYear: '2023.',
+    },
+    {
+      id: 'edu-3',
+      degree: 'Secondary School Certificate Examination (S.S.C)',
+      institution: 'Gachbaria N.G. Govt Model High School',
+      boardOrUniversity: 'Chattogram',
+      subject: 'Business Studies',
+      cgpaOrGpa: '3.06(Out of 5.00 scales)',
+      passingYear: '2021.',
+    },
+  ],
+  experience: [
+    {
+      id: 'exp-1',
+      company: 'Chattogram',
+      position: 'Technician',
+      startDate: '2018',
+      endDate: 'Present',
+      responsibilities: 'Mobile phone repair in chattogram 6 year experience.',
+    },
+  ],
+  personalInfo: {
+    fatherName: 'Abul Khalam',
+    motherName: 'Johora Khatun',
+    dateOfBirth: '23th February 2005',
+    gender: 'Male',
+    nationality: 'Bangladeshi.',
+    religion: 'Islam.',
+    maritalStatus: 'Unmarried.',
+    bloodGroup: 'B+',
+    presentAddress: 'North Hashimpur Syedabad,\nGachbaria (4381) Chandanish,Chattogram.',
+    permanentAddress: 'Do.',
+  },
+  signatureText: 'Habibur Rahman',
+  signatureDate: '',
+  design: {
+    ...sampleCV.design,
+    primaryColor: '#475569',
+    fontFamily: 'Arial',
+    headerStyle: 'bangladeshi',
+  },
+};
+
 export const SAMPLE_CV_ENGLISH = sampleCV;
 export const SAMPLE_CV_BANGLA = sampleBanglaCV;
+

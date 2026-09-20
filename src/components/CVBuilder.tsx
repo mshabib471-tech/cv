@@ -17,7 +17,7 @@ import { A4Document } from './A4Document';
 import { CVFormPanel } from './CVFormPanel';
 import { DesignSettingsPanel } from './DesignSettingsPanel';
 import { StorageService } from '../lib/storage';
-import { generateAndDownloadPDF, printDocument, downloadAsDocx } from '../lib/pdf';
+import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, downloadAsDocx } from '../lib/pdf';
 import { TEMPLATES_DATA } from '../data/templates';
 import { useTranslation } from '../lib/i18n';
 import { TemplateLivePreview } from './TemplateLivePreview';
@@ -43,6 +43,8 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const [showFormAssistant, setShowFormAssistant] = useState<boolean>(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   const [pdfSuccessNotice, setPdfSuccessNotice] = useState<boolean>(false);
+  const [isGeneratingJPEG, setIsGeneratingJPEG] = useState<boolean>(false);
+  const [jpegSuccessNotice, setJpegSuccessNotice] = useState<boolean>(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-save logic
@@ -80,17 +82,32 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
 
   // Switch Template
   const handleSelectTemplate = (template: DocumentTemplate) => {
+    const isBangladeshi = template.id.includes('bangladeshi') || template.id.includes('habib');
+    const isMarriage = template.category === 'Marriage CV' || template.id.includes('marriage');
+    const isTwoColumn = template.id.includes('two-column') || template.id.includes('corporate');
+    const isATS = template.id.includes('ats') || template.isATS;
+
     handleUpdateCV({
       templateId: template.id,
+      category: template.category,
+      pagesCount: template.pageCount || cv.pagesCount || 1,
+      isATS: template.isATS || cv.isATS,
       design: {
         ...cv.design,
         primaryColor: template.accentColor || cv.design.primaryColor,
-        headerStyle: template.id.includes('two-column')
+        headerStyle: isBangladeshi
+          ? 'bangladeshi'
+          : isMarriage
+          ? 'marriage'
+          : isTwoColumn
           ? 'sidebar'
+          : isATS
+          ? 'minimal'
           : template.id.includes('creative')
           ? 'banner'
           : 'modern',
-        fontFamily: template.language === 'বাংলা' ? 'Noto Sans Bengali' : cv.design.fontFamily,
+        fontFamily:
+          template.language === 'বাংলা' ? 'Noto Sans Bengali' : cv.design.fontFamily,
       },
     });
     setShowTemplateModal(false);
@@ -126,6 +143,38 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
     }
   };
 
+  // Download JPG / JPEG
+  const handleDownloadJPEG = async () => {
+    setIsGeneratingJPEG(true);
+    setJpegSuccessNotice(false);
+    try {
+      const isMarriage = cv.category === 'Marriage CV' || cv.templateId?.includes('marriage');
+      const cleanName = (cv.fullName || 'Professional')
+        .trim()
+        .replace(/[\s\W]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'SmartCV';
+      const docType = isMarriage
+        ? 'Marriage_Biodata'
+        : cv.templateId?.includes('bangladeshi') || cv.templateId?.includes('habib')
+        ? 'Resume'
+        : cv.templateId?.includes('corporate')
+        ? 'Executive_Resume'
+        : cv.templateId?.includes('ats')
+        ? 'ATS_Resume'
+        : 'Resume';
+      const filename = `${cleanName}_${docType}`;
+      const success = await exportDocumentAsJPEG('cv-printable-document-container', filename);
+      if (success) {
+        setJpegSuccessNotice(true);
+        setTimeout(() => setJpegSuccessNotice(false), 4000);
+      }
+    } catch (err) {
+      console.error('JPEG generation error:', err);
+    } finally {
+      setIsGeneratingJPEG(false);
+    }
+  };
+
   // Download DOC
   const handleDownloadDocx = () => {
     const docElem =
@@ -148,7 +197,9 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
         setZoom={setZoom}
         isSaving={isSaving}
         isGeneratingPDF={isGeneratingPDF}
+        isGeneratingJPEG={isGeneratingJPEG}
         onDownloadPDF={handleDownloadPDF}
+        onDownloadJPEG={handleDownloadJPEG}
         onDownloadDocx={handleDownloadDocx}
         onPrint={() => printDocument(`${cv.fullName || 'SmartCV'}_Resume`)}
         onAddPage={handleAddPage}
@@ -222,6 +273,14 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
         </div>
       )}
 
+      {/* JPEG Generation Success Toast */}
+      {jpegSuccessNotice && (
+        <div className="fixed top-28 right-6 z-50 bg-teal-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-bounce">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>{isBangla ? 'জেপিজি ছবি সফলভাবে ডাউনলোড হয়েছে!' : 'JPG image(s) downloaded successfully!'}</span>
+        </div>
+      )}
+
       {/* Main Centerpiece: Live Document Editor */}
       <div className="flex-1 flex overflow-hidden w-full relative">
         {/* Optional Form Assistant Panel (Sliding Drawer - Only when explicitly toggled) */}
@@ -252,6 +311,7 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
           <div className="a4-page-scale-wrapper py-6 flex justify-center w-full">
             <A4Document
               cv={cv}
+              setCV={setCV}
               scale={zoom / 100}
               onUpdateField={handleUpdateField}
               isEditable={true}

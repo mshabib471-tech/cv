@@ -14,12 +14,13 @@ import {
   Sliders,
   Sparkles,
   Loader2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { DocumentData, Language, DocumentTemplate } from '../types';
 import { SAMPLE_DOCUMENTS } from '../data/sampleDocs';
 import { TEMPLATES_DATA } from '../data/templates';
 import { StorageService } from '../lib/storage';
-import { generateAndDownloadPDF, printDocument, downloadAsDocx } from '../lib/pdf';
+import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, downloadAsDocx } from '../lib/pdf';
 import { useTranslation } from '../lib/i18n';
 
 interface DocumentBuilderProps {
@@ -62,6 +63,7 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
   const [activeTab, setActiveTab] = useState<'editor' | 'templates'>('editor');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
+  const [isGeneratingJPEG, setIsGeneratingJPEG] = useState<boolean>(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleUpdate = (updatedFields: Partial<DocumentData>) => {
@@ -134,12 +136,24 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      const filename = `${doc.title.replace(/\s+/g, '_')}_SmartCV.pdf`;
+      const filename = `${doc.title.replace(/\s+/g, '_')}_SmartDoc.pdf`;
       await generateAndDownloadPDF('general-doc-printable', filename);
     } catch (err) {
       console.error('PDF generation error:', err);
     } finally {
       setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleDownloadJPEG = async () => {
+    setIsGeneratingJPEG(true);
+    try {
+      const filename = `${doc.title.replace(/\s+/g, '_')}_SmartDoc`;
+      await exportDocumentAsJPEG('general-doc-printable', filename);
+    } catch (err) {
+      console.error('JPEG generation error:', err);
+    } finally {
+      setIsGeneratingJPEG(false);
     }
   };
 
@@ -188,6 +202,26 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
           >
             <Download className="w-3.5 h-3.5" />
             <span>Word (.doc)</span>
+          </button>
+
+          {/* JPG Download */}
+          <button
+            onClick={handleDownloadJPEG}
+            disabled={isGeneratingJPEG}
+            title={language === 'bn' ? 'জেপিজি ছবি হিসেবে সেভ করুন' : 'Save as JPG / JPEG'}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-800 shadow-2xs transition active:scale-95"
+          >
+            {isGeneratingJPEG ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                <span className="hidden sm:inline">{language === 'bn' ? 'তৈরি হচ্ছে...' : 'Saving...'}</span>
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                <span>JPG</span>
+              </>
+            )}
           </button>
 
           <button

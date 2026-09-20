@@ -10,7 +10,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { Footer } from './components/Footer';
 
 import { ActiveView, Language, CVData, DocumentData, DocumentTemplate } from './types';
-import { SAMPLE_CV_ENGLISH, SAMPLE_CV_BANGLA } from './data/sampleCV';
+import { SAMPLE_CV_ENGLISH, SAMPLE_CV_BANGLA, SAMPLE_CV_HABIBUR } from './data/sampleCV';
 import { SAMPLE_DOCUMENTS } from './data/sampleDocs';
 import { TEMPLATES_DATA } from './data/templates';
 import { StorageService } from './lib/storage';
@@ -113,6 +113,15 @@ export default function App() {
       template.category === 'Resume' ||
       template.category === 'Marriage CV'
     ) {
+      if (template.id.includes('bangladeshi') || template.id.includes('habib')) {
+        setCurrentCV({
+          ...SAMPLE_CV_HABIBUR,
+          lastModified: Date.now(),
+        });
+        navigateTo('cv-builder');
+        return;
+      }
+
       const isMarriage =
         template.category === 'Marriage CV' || template.id.includes('marriage');
       const isSidebar =

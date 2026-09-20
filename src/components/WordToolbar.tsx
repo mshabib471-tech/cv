@@ -22,6 +22,7 @@ import {
   Type,
   Maximize2,
   Loader2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Language } from '../types';
 import { useTranslation } from '../lib/i18n';
@@ -32,7 +33,9 @@ interface WordToolbarProps {
   setZoom: (z: number) => void;
   isSaving: boolean;
   isGeneratingPDF?: boolean;
+  isGeneratingJPEG?: boolean;
   onDownloadPDF: () => void;
+  onDownloadJPEG?: () => void;
   onDownloadDocx: () => void;
   onPrint: () => void;
   onAddPage: () => void;
@@ -52,7 +55,9 @@ export const WordToolbar: React.FC<WordToolbarProps> = ({
   setZoom,
   isSaving,
   isGeneratingPDF = false,
+  isGeneratingJPEG = false,
   onDownloadPDF,
+  onDownloadJPEG,
   onDownloadDocx,
   onPrint,
   onAddPage,
@@ -254,16 +259,39 @@ export const WordToolbar: React.FC<WordToolbarProps> = ({
             <span className="hidden sm:inline">{t.print}</span>
           </button>
 
-          {/* DOCX Download */}
+          {/* Word DOC Download */}
           <button
             id="word-toolbar-doc-btn"
             onClick={onDownloadDocx}
             title={t.downloadDOC}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white/90 hover:bg-white text-slate-700 hover:border-slate-300 font-semibold shadow-2xs active:scale-95 transition"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white/90 hover:bg-white text-slate-700 hover:border-slate-300 font-semibold shadow-2xs active:scale-95 transition"
           >
             <Download className="w-3.5 h-3.5 text-indigo-600" />
             <span>Word (.doc)</span>
           </button>
+
+          {/* JPG / JPEG Image Download */}
+          {onDownloadJPEG && (
+            <button
+              id="word-toolbar-jpg-btn"
+              onClick={onDownloadJPEG}
+              disabled={isGeneratingJPEG}
+              title={language === 'bn' ? 'জেপিজি ছবি হিসেবে সেভ করুন' : 'Save as JPG / JPEG'}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold shadow-2xs active:scale-95 transition"
+            >
+              {isGeneratingJPEG ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  <span className="hidden sm:inline">{language === 'bn' ? 'তৈরি হচ্ছে...' : 'Saving...'}</span>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>JPG</span>
+                </>
+              )}
+            </button>
+          )}
 
           {/* Primary Action: Download PDF */}
           <button

@@ -25,7 +25,8 @@ export type TemplateStyle =
   | 'ATS Friendly'
   | 'Minimal'
   | 'Executive'
-  | 'Elegant';
+  | 'Elegant'
+  | 'Bangladeshi Standard';
 
 export interface EducationItem {
   id: string;
@@ -147,7 +148,7 @@ export interface CVData {
     lineHeight: 'tight' | 'normal' | 'relaxed';
     pageMargin: 'compact' | 'normal' | 'spacious';
     sectionSpacing: 'compact' | 'normal' | 'spacious';
-    headerStyle: 'modern' | 'classic' | 'minimal' | 'banner' | 'sidebar' | 'marriage';
+    headerStyle: 'modern' | 'classic' | 'minimal' | 'banner' | 'sidebar' | 'marriage' | 'bangladeshi';
   };
 
   pagesCount: number;

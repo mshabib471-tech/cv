@@ -3,6 +3,20 @@ import { DocumentTemplate } from '../types';
 export const TEMPLATES_DATA: DocumentTemplate[] = [
   // ==================== 1. CV / RESUME TEMPLATES ====================
   {
+    id: 'cv-bangladeshi-standard-2page',
+    name: 'Bangladeshi Standard 2-Page CV',
+    nameBn: 'বাংলাদেশী ২-পৃষ্ঠা পূর্ণাঙ্গ সিভি (cv.pdf ফরম্যাট)',
+    category: 'CV',
+    language: 'English',
+    pageCount: 2,
+    style: 'Bangladeshi Standard',
+    description: 'Exact 2-page Bangladeshi format with shaded section bars, scholastic portfolio, computer skills, job experience, and signature area (matches cv.pdf).',
+    descriptionBn: 'সিভি.পিডিএফ-এর হুবহু ২ পৃষ্ঠার স্ট্যান্ডার্ড ফরম্যাট: পাসপোর্ট সাইজ ছবি, শিক্ষাগত যোগ্যতা, কম্পিউটার দক্ষতা, চাকরির অভিজ্ঞতা ও স্বাক্ষর সহ।',
+    isATS: true,
+    thumbnailColor: '#64748B',
+    accentColor: '#475569',
+  },
+  {
     id: 'cv-modern-blue',
     name: 'Modern Blue CV',
     nameBn: 'মডার্ন ব্লু সিভি',

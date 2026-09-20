@@ -25,9 +25,11 @@ import { CVData, ExperienceItem, EducationItem, ReferenceItem, PersonalInfo } fr
 import { CorporateTwoColumnCV } from './templates/CorporateTwoColumnCV';
 import { MinimalATSCV } from './templates/MinimalATSCV';
 import { MarriageCV } from './templates/MarriageCV';
+import { BangladeshiStandardCV } from './templates/BangladeshiStandardCV';
 
 interface A4DocumentProps {
   cv: CVData;
+  setCV?: React.Dispatch<React.SetStateAction<CVData>>;
   scale?: number;
   onUpdateField?: (field: keyof CVData, value: any) => void;
   onUpdateNested?: (path: string, value: any) => void;
@@ -36,6 +38,7 @@ interface A4DocumentProps {
 
 export const A4Document: React.FC<A4DocumentProps> = ({
   cv,
+  setCV,
   scale = 1,
   onUpdateField,
   onUpdateNested,
@@ -293,6 +296,11 @@ export const A4Document: React.FC<A4DocumentProps> = ({
     cv.design?.headerStyle === 'minimal' ||
     cv.isATS;
 
+  const isBangladeshiStandard =
+    cv.templateId?.includes('habib') ||
+    cv.templateId?.includes('bangladeshi') ||
+    cv.design?.headerStyle === 'bangladeshi';
+
   return (
     <div
       id="cv-printable-document-container"
@@ -322,7 +330,24 @@ export const A4Document: React.FC<A4DocumentProps> = ({
             backgroundColor: '#ffffff',
           }}
         >
-          {isTwoColumn ? (
+          {isBangladeshiStandard ? (
+            <BangladeshiStandardCV
+              cv={cv}
+              setCV={
+                setCV ||
+                ((updater) => {
+                  if (typeof updater === 'function') {
+                    const next = updater(cv);
+                    Object.keys(next).forEach((k) =>
+                      onUpdateField?.(k as keyof CVData, (next as any)[k])
+                    );
+                  }
+                })
+              }
+              language={cv.language || 'en'}
+              pageNum={pageNum}
+            />
+          ) : isTwoColumn ? (
             <CorporateTwoColumnCV
               cv={cv}
               isEditable={isEditable}

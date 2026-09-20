@@ -38,6 +38,7 @@ export const TemplateLivePreview: React.FC<TemplateLivePreviewProps> = ({
 }) => {
   const isBangla = language === 'Bangla' || language === 'বাংলা' || templateId.includes('bangla') || templateId.includes('marriage');
   const isMarriage = category === 'Marriage CV' || templateId.includes('marriage');
+  const isBangladeshiStandard = templateId.includes('bangladeshi') || templateId.includes('habib');
   const isCoverLetter = category === 'Cover Letter' || templateId.includes('cover');
   const isCertificate = category === 'Certificate' || templateId.includes('cert') || templateId.includes('experience');
   const isForm = category === 'Applications' || category === 'Office Form' || templateId.includes('form') || templateId.includes('joining');
@@ -50,8 +51,64 @@ export const TemplateLivePreview: React.FC<TemplateLivePreviewProps> = ({
       className={`relative w-full aspect-[210/297] bg-white rounded-lg shadow-md overflow-hidden select-none border border-slate-200/90 text-slate-800 ${className}`}
       style={{ fontSize: '7px' }}
     >
-      {/* 1. MARRIAGE BIODATA / পাত্র-পাত্রীর বায়োডাটা */}
-      {isMarriage ? (
+      {/* 0. BANGLADESHI STANDARD 2-PAGE CV (cv.pdf format) */}
+      {isBangladeshiStandard ? (
+        <div className="h-full flex flex-col justify-between p-2 bg-white text-[#111] font-serif">
+          <div>
+            <div className="text-center mb-1">
+              <span className="text-[5px] text-slate-600 italic block">`Resume of</span>
+              <span className="text-[8px] font-extrabold uppercase tracking-wide block font-serif">
+                HABIBUR RAHMAN`
+              </span>
+            </div>
+
+            {/* Centered Boxed Passport Photo */}
+            <div className="flex justify-center mb-1.5">
+              <div className="w-8 h-10 border border-black bg-slate-100 overflow-hidden flex items-center justify-center">
+                <User className="w-5 h-5 text-slate-400" />
+              </div>
+            </div>
+
+            {/* Left aligned contact */}
+            <div className="text-[4.5px] leading-tight mb-1 space-y-0.5">
+              <div className="font-bold text-[5px]">Habibur Rahman</div>
+              <div className="text-slate-600">Gachbaria (4381), Chattogram</div>
+              <div>Phone: 01868461577</div>
+            </div>
+
+            {/* Shaded Header 1 */}
+            <div className="bg-[#B8B8B8] border border-black px-1 py-0.5 my-1 text-[5px] font-bold uppercase tracking-wider">
+              CAREER OBJECTIVE
+            </div>
+            <div className="text-[4px] leading-relaxed text-slate-700 px-0.5 mb-1 line-clamp-2">
+              To pursue a challenging career at top-level management and utilize my skills and experiences...
+            </div>
+
+            {/* Shaded Header 2 */}
+            <div className="bg-[#B8B8B8] border border-black px-1 py-0.5 my-1 text-[5px] font-bold uppercase tracking-wider">
+              INTERPERSONAL SKILLS
+            </div>
+            <div className="text-[4px] space-y-0.5 pl-1.5">
+              <div>• Ability to work in a group.</div>
+              <div>• Quick adjustment with surrounding.</div>
+            </div>
+
+            {/* Shaded Header 3 */}
+            <div className="bg-[#B8B8B8] border border-black px-1 py-0.5 my-1 text-[5px] font-bold uppercase tracking-wider">
+              SCHOLASTIC PORTFOLIO
+            </div>
+            <div className="text-[4px] space-y-0.5 pl-1">
+              <div className="font-bold">• Bachelor of Business Studies BBS</div>
+              <div className="pl-1 text-slate-600">Gachbaria Govt College • Running</div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[4px] text-slate-500 font-sans">
+            <span className="font-bold text-slate-700">2-Page Template</span>
+            <span>Page 1 of 2</span>
+          </div>
+        </div>
+      ) : isMarriage ? (
         <div className="h-full flex flex-col justify-between p-2.5 bg-[#FFFBF7] border-2 border-[#E11D48]/30 relative">
           {/* Islamic / Traditional Top Heading */}
           <div className="text-center pb-1 border-b border-[#E11D48]/30">
