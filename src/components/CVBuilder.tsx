@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Sliders,
   Download,
@@ -17,7 +17,7 @@ import { A4Document } from './A4Document';
 import { CVFormPanel } from './CVFormPanel';
 import { DesignSettingsPanel } from './DesignSettingsPanel';
 import { StorageService } from '../lib/storage';
-import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, downloadAsDocx } from '../lib/pdf';
+import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, DownloadReadyEventDetail } from '../lib/pdf';
 import { TEMPLATES_DATA } from '../data/templates';
 import { useTranslation } from '../lib/i18n';
 import { TemplateLivePreview } from './TemplateLivePreview';
@@ -45,7 +45,19 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const [pdfSuccessNotice, setPdfSuccessNotice] = useState<boolean>(false);
   const [isGeneratingJPEG, setIsGeneratingJPEG] = useState<boolean>(false);
   const [jpegSuccessNotice, setJpegSuccessNotice] = useState<boolean>(false);
+  const [downloadReadyInfo, setDownloadReadyInfo] = useState<DownloadReadyEventDetail | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleReady = (e: Event) => {
+      const customEvt = e as CustomEvent<DownloadReadyEventDetail>;
+      if (customEvt.detail) {
+        setDownloadReadyInfo(customEvt.detail);
+      }
+    };
+    window.addEventListener('smartdoc-download-ready', handleReady);
+    return () => window.removeEventListener('smartdoc-download-ready', handleReady);
+  }, []);
 
   // Auto-save logic
   const handleUpdateCV = (updatedFields: Partial<CVData>) => {
@@ -175,21 +187,50 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
     }
   };
 
-  // Download DOC
-  const handleDownloadDocx = () => {
-    const docElem =
-      document.getElementById('cv-printable-document-container') ||
-      document.getElementById('cv-printable-document');
-    if (docElem) {
-      downloadAsDocx(cv.fullName || 'My_CV', docElem.innerHTML);
-    }
-  };
-
   const currentTemplate = TEMPLATES_DATA.find((t) => t.id === cv.templateId);
   const isBangla = cv.language === 'bn' || cv.design?.fontFamily === 'Noto Sans Bengali';
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-slate-100/90 relative">
+      {/* Download Direct Link Fallback Banner */}
+      {downloadReadyInfo && (
+        <div className="bg-emerald-600 text-white px-4 py-2 flex flex-wrap items-center justify-between gap-3 shadow-md z-40 animate-in fade-in slide-in-from-top duration-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-200 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">
+              {language === 'bn'
+                ? `আপনার ${downloadReadyInfo.type === 'pdf' ? 'পিডিএফ (PDF)' : 'জেপিজি ছবি (JPG)'} তৈরি হয়েছে! ডাউনলোড শুরু না হলে এখানে ক্লিক করুন:`
+                : `Your ${downloadReadyInfo.type.toUpperCase()} is ready! If download didn't start automatically, click:`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href={downloadReadyInfo.url}
+              download={downloadReadyInfo.filename}
+              className="px-3.5 py-1.5 bg-white text-emerald-900 font-bold rounded-lg text-xs hover:bg-emerald-50 shadow-sm flex items-center gap-1.5 active:scale-95 transition"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-700" />
+              <span>{language === 'bn' ? 'সরাসরি সেভ করুন' : 'Save File'}</span>
+            </a>
+            <a
+              href={downloadReadyInfo.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-lg text-xs flex items-center gap-1 transition"
+            >
+              <span>{language === 'bn' ? 'নতুন ট্যাবে খুলুন' : 'Open in New Tab'}</span>
+            </a>
+            <button
+              onClick={() => setDownloadReadyInfo(null)}
+              className="p-1 hover:bg-emerald-700/60 rounded-md text-emerald-100 transition ml-1"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Word-Style Toolbar */}
       <WordToolbar
         language={language}
@@ -200,7 +241,6 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
         isGeneratingJPEG={isGeneratingJPEG}
         onDownloadPDF={handleDownloadPDF}
         onDownloadJPEG={handleDownloadJPEG}
-        onDownloadDocx={handleDownloadDocx}
         onPrint={() => printDocument(`${cv.fullName || 'SmartCV'}_Resume`)}
         onAddPage={handleAddPage}
         onRemovePage={handleRemovePage}
