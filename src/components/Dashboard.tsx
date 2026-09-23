@@ -423,6 +423,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </button>
                   </div>
 
+                  <div className="mt-4 aspect-[210/297] w-full bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-3 relative group/preview">
+                    <div className="w-full max-w-[100px] shadow-lg transform group-hover/preview:scale-105 transition-transform duration-300">
+                      <TemplateLivePreview
+                        templateId={cvItem.templateId}
+                        accentColor={cvItem.design.primaryColor}
+                        language={cvItem.language === 'bn' ? 'Bangla' : 'English'}
+                        isATS={cvItem.isATS}
+                      />
+                    </div>
+                  </div>
+
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="text-slate-500 text-[11px]">
                       {cvItem.lastModified ? new Date(cvItem.lastModified).toLocaleDateString() : 'Recent'}
@@ -517,6 +528,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </button>
                     </div>
 
+                    <div className="mt-4 aspect-[210/297] w-full bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-3 relative group/preview">
+                      <div className="w-full max-w-[100px] shadow-lg transform group-hover/preview:scale-105 transition-transform duration-300">
+                        <TemplateLivePreview
+                          templateId={cvItem.templateId}
+                          accentColor={cvItem.design.primaryColor}
+                          language={cvItem.language === 'bn' ? 'Bangla' : 'English'}
+                          isATS={cvItem.isATS}
+                        />
+                      </div>
+                    </div>
+
                     <div className="mt-3 flex items-center gap-2 flex-wrap">
                       <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">
                         {cvItem.templateId || 'Standard'}
@@ -596,8 +618,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   key={docItem.id}
                   className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between"
                 >
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">{docItem.title || 'Official Document'}</h4>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-slate-900 text-sm">{docItem.title || 'Official Document'}</h4>
+                      <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                    </div>
+                    
+                    <div className="aspect-[210/297] w-full bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-3 relative group/preview">
+                      <div className="w-full max-w-[100px] shadow-lg transform group-hover/preview:scale-105 transition-transform duration-300">
+                        <TemplateLivePreview
+                          category={docItem.category}
+                          language={docItem.language === 'bn' ? 'Bangla' : 'English'}
+                          accentColor="#4F46E5"
+                        />
+                      </div>
+                    </div>
+
                     <p className="text-xs text-slate-500 mt-1 line-clamp-2">{docItem.subject || docItem.category}</p>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">

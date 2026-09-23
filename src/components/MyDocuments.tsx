@@ -16,6 +16,7 @@ import { CVData, DocumentData, Language, ActiveView } from '../types';
 import { StorageService } from '../lib/storage';
 import { generateAndDownloadPDF, printDocument } from '../lib/pdf';
 import { useTranslation } from '../lib/i18n';
+import { TemplateLivePreview } from './TemplateLivePreview';
 
 interface MyDocumentsProps {
   language: Language;
@@ -196,7 +197,7 @@ export const MyDocuments: React.FC<MyDocumentsProps> = ({
                 key={cv.id}
                 className="glass-card glass-card-hover p-5 rounded-2xl border border-slate-200/90 flex flex-col justify-between"
               >
-                <div>
+                <div className="flex flex-col gap-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -226,8 +227,21 @@ export const MyDocuments: React.FC<MyDocumentsProps> = ({
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-base text-slate-900 mt-3">{cv.fullName}</h3>
-                  <p className="text-xs text-slate-500 font-medium">{cv.professionalTitle}</p>
+                  <div className="aspect-[210/297] w-full bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-4 relative group">
+                    <div className="w-full max-w-[120px] shadow-lg transform group-hover:scale-105 transition-transform duration-300">
+                      <TemplateLivePreview
+                        templateId={cv.templateId}
+                        accentColor={cv.design.primaryColor}
+                        language={cv.language === 'bn' ? 'Bangla' : 'English'}
+                        isATS={cv.isATS}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 line-clamp-1">{cv.fullName}</h3>
+                    <p className="text-xs text-slate-500 font-medium line-clamp-1">{cv.professionalTitle}</p>
+                  </div>
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
@@ -257,7 +271,7 @@ export const MyDocuments: React.FC<MyDocumentsProps> = ({
                 key={doc.id}
                 className="glass-card glass-card-hover p-5 rounded-2xl border border-slate-200/90 flex flex-col justify-between"
               >
-                <div>
+                <div className="flex flex-col gap-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
@@ -287,8 +301,20 @@ export const MyDocuments: React.FC<MyDocumentsProps> = ({
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-base text-slate-900 mt-3">{doc.title}</h3>
-                  <p className="text-xs text-slate-500 font-medium line-clamp-1">{doc.subject}</p>
+                  <div className="aspect-[210/297] w-full bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-4 relative group">
+                    <div className="w-full max-w-[120px] shadow-lg transform group-hover:scale-105 transition-transform duration-300">
+                      <TemplateLivePreview
+                        category={doc.category}
+                        language={doc.language === 'bn' ? 'Bangla' : 'English'}
+                        accentColor="#4F46E5"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 line-clamp-1">{doc.title}</h3>
+                    <p className="text-xs text-slate-500 font-medium line-clamp-1">{doc.subject}</p>
+                  </div>
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">

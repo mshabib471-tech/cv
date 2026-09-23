@@ -25,7 +25,6 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   registerWithEmail: (email: string, pass: string, name?: string) => Promise<boolean>;
-  loginAsGuest: (name?: string, email?: string) => void;
   logout: () => Promise<void>;
   authError: string | null;
   setAuthError: (err: string | null) => void;
@@ -64,20 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(appUser);
         localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(appUser));
       } else {
-        // If not firebase user, check if we have a guest session
-        const saved = localStorage.getItem(LOCAL_USER_KEY);
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (parsed.isGuest) {
-              setUser(parsed);
-              setIsLoading(false);
-              return;
-            }
-          } catch {
-            // ignore
-          }
-        }
         setUser(null);
         localStorage.removeItem(LOCAL_USER_KEY);
       }
@@ -107,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.warn('Google sign in error:', err);
       // If popup was blocked or iframe restriction, offer friendly message
-      setAuthError(err?.message || 'Google Sign-in failed. You can also sign in with Email or 1-Click Guest.');
+      setAuthError(err?.message || 'Google Sign-in failed. You can also sign in with Email.');
       return false;
     }
   };
@@ -160,19 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginAsGuest = (name = 'হাবিবুর রহমান (Demo User)', email = 'user@smartcv.app') => {
-    const guestUser: AppUser = {
-      uid: 'guest-' + Date.now(),
-      email,
-      displayName: name,
-      photoURL: DEFAULT_AVATAR,
-      isGuest: true,
-    };
-    setUser(guestUser);
-    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(guestUser));
-    setAuthError(null);
-  };
-
   const logout = async () => {
     try {
       await signOut(auth);
@@ -191,7 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         loginWithEmail,
         registerWithEmail,
-        loginAsGuest,
         logout,
         authError,
         setAuthError,

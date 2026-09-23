@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Sliders,
   Download,
   Printer,
   Layers,
   CheckCircle2,
-  FileText,
   X,
   Eye,
   Info,
@@ -14,8 +12,6 @@ import {
 import { CVData, Language, DocumentTemplate } from '../types';
 import { WordToolbar } from './WordToolbar';
 import { A4Document } from './A4Document';
-import { CVFormPanel } from './CVFormPanel';
-import { DesignSettingsPanel } from './DesignSettingsPanel';
 import { StorageService } from '../lib/storage';
 import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, DownloadReadyEventDetail, PDFGenerationProgress } from '../lib/pdf';
 import { TEMPLATES_DATA } from '../data/templates';
@@ -44,8 +40,6 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const [zoom, setZoom] = useState<number>(100);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showTemplateModal, setShowTemplateModal] = useState<boolean>(false);
-  const [showDesignDrawer, setShowDesignDrawer] = useState<boolean>(false);
-  const [showFormAssistant, setShowFormAssistant] = useState<boolean>(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
   const [showMasterProfile, setShowMasterProfile] = useState<boolean>(false);
   const [showDownloadAgainModal, setShowDownloadAgainModal] = useState<boolean>(false);
@@ -504,46 +498,9 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
             <Star className={`w-3.5 h-3.5 ${cv.isFavorite ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
             <span>{isBangla ? (cv.isFavorite ? 'পছন্দের সিভি' : 'ফেভারিট করুন') : (cv.isFavorite ? 'Favorited' : 'Favorite')}</span>
           </button>
-
-          {/* Design & Colors Drawer Toggle */}
-          <button
-            onClick={() => setShowDesignDrawer(!showDesignDrawer)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition ${
-              showDesignDrawer
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5 text-blue-600" />
-            <span>{isBangla ? 'ডিজাইন ও কালার' : 'Design & Layout'}</span>
-          </button>
-
-          {/* Optional Form Assistant Toggle */}
-          <button
-            onClick={() => setShowFormAssistant(!showFormAssistant)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition ${
-              showFormAssistant
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5 text-slate-500" />
-            <span>{isBangla ? 'ফর্ম তালিকা' : 'Form List'}</span>
-          </button>
-
-          {/* LinkedIn Profile Quick Import */}
-          <button
-            onClick={() => setShowLinkedInModal(true)}
-            id="linkedin-import-toolbar-button"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-bold text-[#0A66C2] shadow-2xs transition active:scale-95"
-            title={isBangla ? 'লিঙ্কডইন থেকে সরাসরি তথ্য ইমপোর্ট করুন' : 'Quickly import profile from LinkedIn'}
-          >
-            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-            </svg>
-            <span>{isBangla ? 'লিঙ্কডইন ইমপোর্ট' : 'Import LinkedIn'}</span>
-          </button>
         </div>
+
+        {/* Live editing reminder tip */}
 
         {/* Live editing reminder tip */}
         <div className="hidden md:flex items-center gap-2 text-xs text-slate-600 bg-blue-50/80 border border-blue-200/60 rounded-xl px-3 py-1">
@@ -574,31 +531,20 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
 
       {/* Main Centerpiece: Live Document Editor */}
       <div className="flex-1 flex overflow-hidden w-full relative">
-        {/* Optional Form Assistant Panel (Sliding Drawer - Only when explicitly toggled) */}
-        {showFormAssistant && (
-          <aside className="w-full sm:w-96 bg-white border-r border-slate-200/90 shadow-lg z-20 overflow-y-auto p-4 shrink-0 transition-all">
-            <div className="mb-3 flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">{isBangla ? 'ফর্ম ফিল্ডস' : 'Form Fields'}</h3>
-                <p className="text-[11px] text-slate-500">
-                  {isBangla
-                    ? 'আপনি চাইলে সরাসরি লাইভ সিভিতেও এডিট করতে পারেন।'
-                    : 'You can also click directly on the live document to edit.'}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowFormAssistant(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <CVFormPanel cv={cv} onUpdateCV={handleUpdateCV} />
-          </aside>
-        )}
-
         {/* Primary Live A4 Canvas (Full focus & Spacious) */}
-        <main className="flex-1 overflow-y-auto overflow-x-auto p-3 sm:p-8 flex flex-col items-center bg-slate-200/50 pb-24 lg:pb-8">
+        <main 
+          ref={previewContainerRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 overflow-y-auto overflow-x-auto p-3 sm:p-8 flex flex-col items-center bg-slate-200/50 pb-24 lg:pb-8 relative select-none"
+          style={{ touchAction: 'pan-x pan-y' }}
+        >
+          {showPinchBadge && (
+            <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] bg-slate-900/80 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold border border-white/20 animate-in fade-in zoom-in duration-200">
+              {isBangla ? 'জুম:' : 'Zoom:'} {zoom}%
+            </div>
+          )}
           <div className="a4-page-scale-wrapper py-4 sm:py-6 flex justify-center w-full">
             <A4Document
               cv={cv}
@@ -610,27 +556,6 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
             />
           </div>
         </main>
-
-        {/* Optional Design Drawer (Sliding Drawer on Right) */}
-        {showDesignDrawer && (
-          <aside className="w-full sm:w-88 bg-white border-l border-slate-200/90 shadow-lg z-20 overflow-y-auto p-4 shrink-0 transition-all">
-            <div className="mb-3 flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 text-sm">{t.designSettings}</h3>
-              <button
-                onClick={() => setShowDesignDrawer(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <DesignSettingsPanel
-              cv={cv}
-              onUpdateCV={handleUpdateCV}
-              onAddPage={handleAddPage}
-              onRemovePage={handleRemovePage}
-            />
-          </aside>
-        )}
       </div>
 
       {/* Template Selection Modal */}
@@ -703,21 +628,6 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
           </div>
         </div>
       )}
-
-      {/* LinkedIn Profile Import Modal */}
-      <LinkedInImportModal
-        isOpen={showLinkedInModal}
-        onClose={() => setShowLinkedInModal(false)}
-        onImport={handleImportLinkedIn}
-        language={language}
-      />
-
-      {/* Floating Mobile Zoom & Swipe Scroll Toolbar */}
-      <MobileZoomToolbar
-        zoom={zoom}
-        setZoom={setZoom}
-        language={language}
-      />
 
       {/* Avatar Picker Modal */}
       <AvatarPickerModal

@@ -1,13 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
-import { CVBuilder } from './components/CVBuilder';
-import { DocumentBuilder } from './components/DocumentBuilder';
-import { TemplateMarketplace } from './components/TemplateMarketplace';
-import { MyDocuments } from './components/MyDocuments';
-import { Dashboard } from './components/Dashboard';
-import { AdminPanel } from './components/AdminPanel';
 import { Footer } from './components/Footer';
+import { PWAInstallPopup } from './components/PWAInstallPopup';
 
 import { ActiveView, Language, CVData, DocumentData, DocumentTemplate } from './types';
 import { SAMPLE_CV_ENGLISH, SAMPLE_CV_BANGLA, SAMPLE_CV_HABIBUR } from './data/sampleCV';
@@ -15,25 +10,24 @@ import { SAMPLE_DOCUMENTS } from './data/sampleDocs';
 import { TEMPLATES_DATA } from './data/templates';
 import { StorageService } from './lib/storage';
 import { useTranslation } from './lib/i18n';
-import { TemplateLivePreview } from './components/TemplateLivePreview';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
 
 import {
   FileText,
-  FileSpreadsheet,
-  CheckCircle2,
   Sparkles,
-  Award,
   ShieldCheck,
-  Zap,
   Download,
   ArrowRight,
-  Layers,
-  HeartHandshake,
-  Briefcase,
-  Printer,
 } from 'lucide-react';
+
+const CVBuilder = lazy(() => import('./components/CVBuilder').then(m => ({ default: m.CVBuilder })));
+const DocumentBuilder = lazy(() => import('./components/DocumentBuilder').then(m => ({ default: m.DocumentBuilder })));
+const TemplateMarketplace = lazy(() => import('./components/TemplateMarketplace').then(m => ({ default: m.TemplateMarketplace })));
+const MyDocuments = lazy(() => import('./components/MyDocuments').then(m => ({ default: m.MyDocuments })));
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const TemplateLivePreview = lazy(() => import('./components/TemplateLivePreview').then(m => ({ default: m.TemplateLivePreview })));
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('home');
@@ -239,8 +233,15 @@ export default function App() {
         onQuickSearch={handleHeroSearch}
       />
 
+      <PWAInstallPopup language={language} />
+
       {/* Main View Router */}
       <main className="flex-1">
+        <Suspense fallback={
+          <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        }>
         {activeView === 'home' && (
           <div className="space-y-16 lg:space-y-24">
             {/* Full Glass UI Hero */}
@@ -462,6 +463,7 @@ export default function App() {
             onBackToApp={() => navigateTo('home')}
           />
         )}
+        </Suspense>
       </main>
 
       {/* Global Glass Footer (Hidden during full-screen CV, Doc editing, and Admin Dashboard) */}

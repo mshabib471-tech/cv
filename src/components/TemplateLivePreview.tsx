@@ -26,7 +26,7 @@ interface TemplateLivePreviewProps {
   className?: string;
 }
 
-export const TemplateLivePreview: React.FC<TemplateLivePreviewProps> = ({
+export const TemplateLivePreview = React.memo(({
   templateId = 'cv-modern-blue',
   category = 'CV',
   style = 'Modern',
@@ -35,7 +35,7 @@ export const TemplateLivePreview: React.FC<TemplateLivePreviewProps> = ({
   language = 'English',
   isATS = false,
   className = '',
-}) => {
+}: TemplateLivePreviewProps) => {
   const isBangla = language === 'Bangla' || language === 'বাংলা' || templateId.includes('bangla') || templateId.includes('marriage');
   const isMarriage = category === 'Marriage CV' || templateId.includes('marriage');
   const isBangladeshiStandard = templateId.includes('bangladeshi') || templateId.includes('habib');
@@ -551,4 +551,4 @@ export const TemplateLivePreview: React.FC<TemplateLivePreviewProps> = ({
       )}
     </div>
   );
-};
+});
