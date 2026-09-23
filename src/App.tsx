@@ -16,6 +16,8 @@ import { TEMPLATES_DATA } from './data/templates';
 import { StorageService } from './lib/storage';
 import { useTranslation } from './lib/i18n';
 import { TemplateLivePreview } from './components/TemplateLivePreview';
+import { ToastProvider } from './context/ToastContext';
+import { AuthProvider } from './context/AuthContext';
 
 import {
   FileText,
@@ -124,36 +126,48 @@ export default function App() {
 
       const isMarriage =
         template.category === 'Marriage CV' || template.id.includes('marriage');
+      const isExecutive =
+        template.id.includes('executive') || template.style === 'Executive';
       const isSidebar =
-        template.id.includes('two-column') || template.id.includes('corporate');
+        template.id.includes('two-column') || template.id.includes('corporate') || isExecutive;
       const isMinimalATS =
-        template.id.includes('ats') || template.isATS || template.id.includes('minimal');
+        template.id.includes('ats') || template.isATS || template.id.includes('minimal') || template.id.includes('student');
       const isBanner =
         template.id.includes('creative') || template.id.includes('modern-blue');
 
+      const defaults = (template.defaultData as Partial<CVData>) || {};
+
       setCurrentCV((prev) => ({
         ...prev,
+        ...defaults,
         templateId: template.id,
         category: template.category,
-        language: template.language === 'বাংলা' ? 'bn' : 'en',
-        pagesCount: template.pageCount || 1,
-        isATS: template.isATS || prev.isATS,
+        language: template.language === 'বাংলা' ? 'bn' : (defaults.language || prev.language || 'en'),
+        pagesCount: template.pageCount || defaults.pagesCount || prev.pagesCount || 1,
+        isATS: template.isATS !== undefined ? template.isATS : prev.isATS,
+        lastModified: Date.now(),
         design: {
           ...prev.design,
+          ...defaults.design,
           primaryColor:
             template.accentColor ||
-            (isMarriage ? '#E11D48' : isSidebar ? '#1E3A8A' : prev.design.primaryColor),
+            defaults.design?.primaryColor ||
+            (isMarriage ? '#E11D48' : isExecutive ? '#0F2942' : isSidebar ? '#1E3A8A' : prev.design.primaryColor),
           fontFamily:
-            template.language === 'বাংলা' ? 'Noto Sans Bengali' : prev.design.fontFamily,
-          headerStyle: isMarriage
-            ? 'marriage'
-            : isSidebar
-            ? 'sidebar'
-            : isMinimalATS
-            ? 'minimal'
-            : isBanner
-            ? 'banner'
-            : 'modern',
+            template.language === 'বাংলা'
+              ? 'Noto Sans Bengali'
+              : defaults.design?.fontFamily || prev.design.fontFamily,
+          headerStyle:
+            defaults.design?.headerStyle ||
+            (isMarriage
+              ? 'marriage'
+              : isSidebar
+              ? 'sidebar'
+              : isMinimalATS
+              ? 'minimal'
+              : isBanner
+              ? 'banner'
+              : 'modern'),
         },
       }));
       navigateTo('cv-builder');
@@ -213,7 +227,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+    <AuthProvider>
+      <ToastProvider>
+        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
       {/* Sticky Glass Navbar */}
       <Navbar
         activeView={activeView}
@@ -440,13 +456,20 @@ export default function App() {
           />
         )}
 
-        {activeView === 'admin' && <AdminPanel language={language} />}
+        {activeView === 'admin' && (
+          <AdminPanel
+            language={language}
+            onBackToApp={() => navigateTo('home')}
+          />
+        )}
       </main>
 
-      {/* Global Glass Footer (Hidden during full-screen CV & Doc editing) */}
-      {activeView !== 'cv-builder' && activeView !== 'doc-builder' && (
+      {/* Global Glass Footer (Hidden during full-screen CV, Doc editing, and Admin Dashboard) */}
+      {activeView !== 'cv-builder' && activeView !== 'doc-builder' && activeView !== 'admin' && (
         <Footer setActiveView={navigateTo} language={language} />
       )}
     </div>
+  </ToastProvider>
+</AuthProvider>
   );
 }

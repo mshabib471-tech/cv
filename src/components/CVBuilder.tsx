@@ -17,10 +17,15 @@ import { A4Document } from './A4Document';
 import { CVFormPanel } from './CVFormPanel';
 import { DesignSettingsPanel } from './DesignSettingsPanel';
 import { StorageService } from '../lib/storage';
-import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, DownloadReadyEventDetail } from '../lib/pdf';
+import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, DownloadReadyEventDetail, PDFGenerationProgress } from '../lib/pdf';
 import { TEMPLATES_DATA } from '../data/templates';
 import { useTranslation } from '../lib/i18n';
 import { TemplateLivePreview } from './TemplateLivePreview';
+import { useToast } from '../context/ToastContext';
+import { AvatarPickerModal } from './AvatarPickerModal';
+import { MasterProfileModal } from './MasterProfileModal';
+import { ImageDownloadAgainModal } from './ImageDownloadAgainModal';
+import { Star, Zap, UserCircle, Image as ImageIcon } from 'lucide-react';
 
 interface CVBuilderProps {
   cv: CVData;
@@ -41,11 +46,98 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const [showTemplateModal, setShowTemplateModal] = useState<boolean>(false);
   const [showDesignDrawer, setShowDesignDrawer] = useState<boolean>(false);
   const [showFormAssistant, setShowFormAssistant] = useState<boolean>(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
+  const [showMasterProfile, setShowMasterProfile] = useState<boolean>(false);
+  const [showDownloadAgainModal, setShowDownloadAgainModal] = useState<boolean>(false);
+  const [lastExportedJpeg, setLastExportedJpeg] = useState<{ url: string; filename: string }>({
+    url: '',
+    filename: '',
+  });
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   const [pdfSuccessNotice, setPdfSuccessNotice] = useState<boolean>(false);
   const [isGeneratingJPEG, setIsGeneratingJPEG] = useState<boolean>(false);
   const [jpegSuccessNotice, setJpegSuccessNotice] = useState<boolean>(false);
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<DownloadReadyEventDetail | null>(null);
+
+  // Mobile Touch Pinch-to-Zoom refs & state
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const initialPinchDistRef = useRef<number | null>(null);
+  const initialZoomRef = useRef<number>(zoom);
+  const isPinchingRef = useRef<boolean>(false);
+  const lastTapTimeRef = useRef<number>(0);
+  const [showPinchBadge, setShowPinchBadge] = useState<boolean>(false);
+  const pinchTimeoutRef = useRef<any>(null);
+
+  // Auto-fit initial zoom on mobile screens so the full document is immediately viewable
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      const screenW = window.innerWidth;
+      // 210mm at 96 DPI is ~794px
+      const fitZoom = Math.min(100, Math.max(45, Math.floor(((screenW - 20) / 794) * 100)));
+      setZoom(fitZoom);
+    }
+  }, []);
+
+  // Handlers for two-finger touch pinch-to-zoom and double-tap zoom
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      // 2 fingers touch -> start pinch gesture
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialPinchDistRef.current = dist;
+      initialZoomRef.current = zoom;
+      isPinchingRef.current = true;
+      setShowPinchBadge(true);
+      if (pinchTimeoutRef.current) clearTimeout(pinchTimeoutRef.current);
+    } else if (e.touches.length === 1) {
+      // Single finger touch: check for double tap to toggle fit/edit zoom
+      const now = Date.now();
+      if (now - lastTapTimeRef.current < 280) {
+        const screenW = typeof window !== 'undefined' ? window.innerWidth : 390;
+        const fitZoom = Math.min(100, Math.max(45, Math.floor(((screenW - 20) / 794) * 100)));
+        if (zoom <= fitZoom + 10) {
+          setZoom(120);
+        } else {
+          setZoom(fitZoom);
+        }
+        setShowPinchBadge(true);
+        if (pinchTimeoutRef.current) clearTimeout(pinchTimeoutRef.current);
+        pinchTimeoutRef.current = setTimeout(() => setShowPinchBadge(false), 1400);
+      }
+      lastTapTimeRef.current = now;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && initialPinchDistRef.current && isPinchingRef.current) {
+      const currentDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const ratio = currentDist / initialPinchDistRef.current;
+      const nextZoom = Math.min(230, Math.max(35, Math.round(initialZoomRef.current * ratio)));
+      setZoom(nextZoom);
+      setShowPinchBadge(true);
+      if (pinchTimeoutRef.current) clearTimeout(pinchTimeoutRef.current);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isPinchingRef.current && e.touches.length < 2) {
+      isPinchingRef.current = false;
+      initialPinchDistRef.current = null;
+      if (pinchTimeoutRef.current) clearTimeout(pinchTimeoutRef.current);
+      pinchTimeoutRef.current = setTimeout(() => {
+        setShowPinchBadge(false);
+      }, 1400);
+    }
+  };
+
+  const { toast, updateToast } = useToast();
+  const activePdfToastIdRef = useRef<string | null>(null);
+  const activeJpegToastIdRef = useRef<string | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -53,11 +145,23 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
       const customEvt = e as CustomEvent<DownloadReadyEventDetail>;
       if (customEvt.detail) {
         setDownloadReadyInfo(customEvt.detail);
+        if (activePdfToastIdRef.current) {
+          updateToast(activePdfToastIdRef.current, {
+            downloadUrl: customEvt.detail.url,
+            filename: customEvt.detail.filename,
+          });
+        }
+        if (activeJpegToastIdRef.current) {
+          updateToast(activeJpegToastIdRef.current, {
+            downloadUrl: customEvt.detail.url,
+            filename: customEvt.detail.filename,
+          });
+        }
       }
     };
     window.addEventListener('smartdoc-download-ready', handleReady);
     return () => window.removeEventListener('smartdoc-download-ready', handleReady);
-  }, []);
+  }, [updateToast]);
 
   // Auto-save logic
   const handleUpdateCV = (updatedFields: Partial<CVData>) => {
@@ -96,14 +200,15 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const handleSelectTemplate = (template: DocumentTemplate) => {
     const isBangladeshi = template.id.includes('bangladeshi') || template.id.includes('habib');
     const isMarriage = template.category === 'Marriage CV' || template.id.includes('marriage');
-    const isTwoColumn = template.id.includes('two-column') || template.id.includes('corporate');
-    const isATS = template.id.includes('ats') || template.isATS;
+    const isExecutive = template.id.includes('executive') || template.style === 'Executive';
+    const isTwoColumn = template.id.includes('two-column') || template.id.includes('corporate') || isExecutive;
+    const isATS = template.id.includes('ats') || template.isATS || template.id.includes('student');
 
     handleUpdateCV({
       templateId: template.id,
       category: template.category,
       pagesCount: template.pageCount || cv.pagesCount || 1,
-      isATS: template.isATS || cv.isATS,
+      isATS: template.isATS !== undefined ? template.isATS : cv.isATS,
       design: {
         ...cv.design,
         primaryColor: template.accentColor || cv.design.primaryColor,
@@ -129,27 +234,67 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
     setPdfSuccessNotice(false);
+    const isMarriage = cv.category === 'Marriage CV' || cv.templateId?.includes('marriage');
+    const cleanName = (cv.fullName || 'Professional')
+      .trim()
+      .replace(/[\s\W]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'SmartCV';
+    const docType = isMarriage
+      ? 'Marriage_Biodata'
+      : cv.templateId?.includes('corporate')
+      ? 'Executive_Resume'
+      : cv.templateId?.includes('ats')
+      ? 'ATS_Resume'
+      : 'Resume';
+    const filename = `${cleanName}_${docType}.pdf`;
+
+    const toastId = toast.loading('Preparing PDF...', {
+      filename,
+      progress: 10,
+      message: language === 'bn' ? 'হাই-রেজোলিউশন পেজ রেন্ডার করা হচ্ছে...' : 'Rendering high-resolution document pages...',
+    });
+    activePdfToastIdRef.current = toastId;
+
     try {
-      const isMarriage = cv.category === 'Marriage CV' || cv.templateId?.includes('marriage');
-      const cleanName = (cv.fullName || 'Professional')
-        .trim()
-        .replace(/[\s\W]+/g, '_')
-        .replace(/^_+|_+$/g, '') || 'SmartCV';
-      const docType = isMarriage
-        ? 'Marriage_Biodata'
-        : cv.templateId?.includes('corporate')
-        ? 'Executive_Resume'
-        : cv.templateId?.includes('ats')
-        ? 'ATS_Resume'
-        : 'Resume';
-      const filename = `${cleanName}_${docType}.pdf`;
-      const success = await generateAndDownloadPDF('cv-printable-document-container', filename);
+      const success = await generateAndDownloadPDF(
+        'cv-printable-document-container',
+        filename,
+        (prog) => {
+          updateToast(toastId, {
+            progress: prog.progress,
+            message: prog.message,
+          });
+        }
+      );
+
       if (success) {
         setPdfSuccessNotice(true);
+        updateToast(toastId, {
+          type: 'success',
+          title: 'Download successful!',
+          message: language === 'bn'
+            ? 'আপনার পিডিএফ সফলভাবে ডাউনলোড হয়েছে।'
+            : 'Your PDF has been generated and downloaded successfully.',
+          progress: 100,
+          filename,
+        });
         setTimeout(() => setPdfSuccessNotice(false), 4000);
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Error occurred',
+          message: language === 'bn'
+            ? 'পিডিএফ তৈরিতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'
+            : 'Failed to generate PDF document. Please try again.',
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('PDF generation error:', err);
+      updateToast(toastId, {
+        type: 'error',
+        title: 'Error occurred',
+        message: err?.message || (language === 'bn' ? 'পিডিএফ তৈরিতে সমস্যা হয়েছে।' : 'An unexpected error occurred during generation.'),
+      });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -159,32 +304,91 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
   const handleDownloadJPEG = async () => {
     setIsGeneratingJPEG(true);
     setJpegSuccessNotice(false);
+    const isMarriage = cv.category === 'Marriage CV' || cv.templateId?.includes('marriage');
+    const cleanName = (cv.fullName || 'Professional')
+      .trim()
+      .replace(/[\s\W]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'SmartCV';
+    const docType = isMarriage
+      ? 'Marriage_Biodata'
+      : cv.templateId?.includes('bangladeshi') || cv.templateId?.includes('habib')
+      ? 'Resume'
+      : cv.templateId?.includes('corporate')
+      ? 'Executive_Resume'
+      : cv.templateId?.includes('ats')
+      ? 'ATS_Resume'
+      : 'Resume';
+    // Append timestamp suffix so repeated saves auto-rename and work every time
+    const timeSuffix = Date.now().toString().slice(-4);
+    const filename = `${cleanName}_${docType}_${timeSuffix}`;
+
+    const toastId = toast.loading('Preparing Image...', {
+      filename: `${filename}.jpg`,
+      progress: 15,
+      message: language === 'bn' ? 'জেপিজি ছবি তৈরি হচ্ছে...' : 'Rendering high-resolution image...',
+    });
+    activeJpegToastIdRef.current = toastId;
+
     try {
-      const isMarriage = cv.category === 'Marriage CV' || cv.templateId?.includes('marriage');
-      const cleanName = (cv.fullName || 'Professional')
-        .trim()
-        .replace(/[\s\W]+/g, '_')
-        .replace(/^_+|_+$/g, '') || 'SmartCV';
-      const docType = isMarriage
-        ? 'Marriage_Biodata'
-        : cv.templateId?.includes('bangladeshi') || cv.templateId?.includes('habib')
-        ? 'Resume'
-        : cv.templateId?.includes('corporate')
-        ? 'Executive_Resume'
-        : cv.templateId?.includes('ats')
-        ? 'ATS_Resume'
-        : 'Resume';
-      const filename = `${cleanName}_${docType}`;
-      const success = await exportDocumentAsJPEG('cv-printable-document-container', filename);
-      if (success) {
+      const res = await exportDocumentAsJPEG('cv-printable-document-container', filename);
+      if (res.success) {
         setJpegSuccessNotice(true);
+        if (res.dataUrl) {
+          setLastExportedJpeg({
+            url: res.dataUrl,
+            filename: res.filename || `${filename}.jpg`,
+          });
+          setShowDownloadAgainModal(true);
+        }
+        updateToast(toastId, {
+          type: 'success',
+          title: 'Download successful!',
+          message: language === 'bn'
+            ? 'জেপিজি ছবি সফলভাবে ডাউনলোড হয়েছে।'
+            : 'Image downloaded successfully.',
+          progress: 100,
+          filename: res.filename || `${filename}.jpg`,
+        });
         setTimeout(() => setJpegSuccessNotice(false), 4000);
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Error occurred',
+          message: language === 'bn' ? 'ছবি তৈরিতে সমস্যা হয়েছে।' : 'Failed to generate image.',
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('JPEG generation error:', err);
+      updateToast(toastId, {
+        type: 'error',
+        title: 'Error occurred',
+        message: err?.message || 'Failed to generate image.',
+      });
     } finally {
       setIsGeneratingJPEG(false);
     }
+  };
+
+  const handleDownloadAgain = () => {
+    if (lastExportedJpeg.url) {
+      const a = document.createElement('a');
+      a.href = lastExportedJpeg.url;
+      a.download = lastExportedJpeg.filename || 'SmartCV.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  const handleToggleFavorite = () => {
+    const updated = !cv.isFavorite;
+    handleUpdateCV({ isFavorite: updated });
+    StorageService.toggleFavoriteCV(cv.id);
+    toast.success(
+      updated
+        ? isBangla ? 'সিভিটি পছন্দের তালিকায় যোগ করা হয়েছে!' : 'Added to favorites!'
+        : isBangla ? 'পছন্দের তালিকা থেকে বাদ দেওয়া হয়েছে।' : 'Removed from favorites.'
+    );
   };
 
   const currentTemplate = TEMPLATES_DATA.find((t) => t.id === cv.templateId);
@@ -267,6 +471,40 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
             </span>
           </button>
 
+          {/* Avatar / Photo Selector */}
+          <button
+            onClick={() => setShowAvatarPicker(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs hover:border-purple-300 transition"
+            title={isBangla ? 'সিভির ছবি বা প্রফেশনাল অ্যাভাটার নির্বাচন' : 'Change photo or pick avatar'}
+          >
+            <UserCircle className="w-3.5 h-3.5 text-purple-600" />
+            <span>{isBangla ? 'ছবি / অ্যাভাটার' : 'Avatar / Photo'}</span>
+          </button>
+
+          {/* Master Profile & 1-Click Generator */}
+          <button
+            onClick={() => setShowMasterProfile(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-xs font-bold text-amber-800 shadow-2xs transition active:scale-95"
+            title={isBangla ? 'আপনার মাস্টার প্রোফাইল ডাটাবেজ খুলুন' : 'Open master profile details'}
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+            <span>{isBangla ? 'মাস্টার প্রোফাইল' : 'Master Profile'}</span>
+          </button>
+
+          {/* Favorite Toggle Button */}
+          <button
+            onClick={handleToggleFavorite}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition ${
+              cv.isFavorite
+                ? 'border-amber-300 bg-amber-50 text-amber-800 font-bold'
+                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+            }`}
+            title={isBangla ? 'প্রিয় সিভিতে যোগ/বাদ দিন' : 'Toggle favorite'}
+          >
+            <Star className={`w-3.5 h-3.5 ${cv.isFavorite ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+            <span>{isBangla ? (cv.isFavorite ? 'পছন্দের সিভি' : 'ফেভারিট করুন') : (cv.isFavorite ? 'Favorited' : 'Favorite')}</span>
+          </button>
+
           {/* Design & Colors Drawer Toggle */}
           <button
             onClick={() => setShowDesignDrawer(!showDesignDrawer)}
@@ -290,7 +528,20 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
             }`}
           >
             <FileText className="w-3.5 h-3.5 text-slate-500" />
-            <span>{isBangla ? 'ফর্ম তালিকা (ঐচ্ছিক)' : 'Form List (Optional)'}</span>
+            <span>{isBangla ? 'ফর্ম তালিকা' : 'Form List'}</span>
+          </button>
+
+          {/* LinkedIn Profile Quick Import */}
+          <button
+            onClick={() => setShowLinkedInModal(true)}
+            id="linkedin-import-toolbar-button"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-bold text-[#0A66C2] shadow-2xs transition active:scale-95"
+            title={isBangla ? 'লিঙ্কডইন থেকে সরাসরি তথ্য ইমপোর্ট করুন' : 'Quickly import profile from LinkedIn'}
+          >
+            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+            </svg>
+            <span>{isBangla ? 'লিঙ্কডইন ইমপোর্ট' : 'Import LinkedIn'}</span>
           </button>
         </div>
 
@@ -347,14 +598,15 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
         )}
 
         {/* Primary Live A4 Canvas (Full focus & Spacious) */}
-        <main className="flex-1 overflow-y-auto overflow-x-auto p-4 sm:p-8 flex flex-col items-center bg-slate-200/50">
-          <div className="a4-page-scale-wrapper py-6 flex justify-center w-full">
+        <main className="flex-1 overflow-y-auto overflow-x-auto p-3 sm:p-8 flex flex-col items-center bg-slate-200/50 pb-24 lg:pb-8">
+          <div className="a4-page-scale-wrapper py-4 sm:py-6 flex justify-center w-full">
             <A4Document
               cv={cv}
               setCV={setCV}
               scale={zoom / 100}
               onUpdateField={handleUpdateField}
               isEditable={true}
+              onOpenAvatarPicker={() => setShowAvatarPicker(true)}
             />
           </div>
         </main>
@@ -451,6 +703,51 @@ export const CVBuilder: React.FC<CVBuilderProps> = ({
           </div>
         </div>
       )}
+
+      {/* LinkedIn Profile Import Modal */}
+      <LinkedInImportModal
+        isOpen={showLinkedInModal}
+        onClose={() => setShowLinkedInModal(false)}
+        onImport={handleImportLinkedIn}
+        language={language}
+      />
+
+      {/* Floating Mobile Zoom & Swipe Scroll Toolbar */}
+      <MobileZoomToolbar
+        zoom={zoom}
+        setZoom={setZoom}
+        language={language}
+      />
+
+      {/* Avatar Picker Modal */}
+      <AvatarPickerModal
+        isOpen={showAvatarPicker}
+        onClose={() => setShowAvatarPicker(false)}
+        selectedAvatar={cv.photoUrl}
+        onSelectAvatar={(uri) => handleUpdateCV({ photoUrl: uri })}
+        onUploadCustomPhoto={(dataUrl) => handleUpdateCV({ photoUrl: dataUrl })}
+        language={language}
+      />
+
+      {/* Master Profile Modal & 1-Click Generator */}
+      <MasterProfileModal
+        isOpen={showMasterProfile}
+        onClose={() => setShowMasterProfile(false)}
+        language={language}
+        onGenerateCV={(newCV) => setCV(newCV)}
+      />
+
+      {/* Image Download Again & Auto-Rename Modal */}
+      <ImageDownloadAgainModal
+        isOpen={showDownloadAgainModal}
+        onClose={() => setShowDownloadAgainModal(false)}
+        imageUrl={lastExportedJpeg.url}
+        filename={lastExportedJpeg.filename}
+        onDownloadAgain={handleDownloadAgain}
+        onReExportLatest={handleDownloadJPEG}
+        language={language}
+        isExporting={isGeneratingJPEG}
+      />
     </div>
   );
 };

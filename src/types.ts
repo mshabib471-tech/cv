@@ -106,6 +106,7 @@ export interface CVData {
   language: Language;
   lastModified: number;
   isATS?: boolean;
+  isFavorite?: boolean;
 
   // Header / Contact
   fullName: string;
@@ -231,4 +232,30 @@ export interface DocumentTemplate {
   defaultData?: Partial<CVData> | Partial<GenericDocumentData>;
 }
 
-export type ActiveView = 'home' | 'templates' | 'cv-builder' | 'doc-builder' | 'my-docs' | 'dashboard' | 'admin';
+export interface UserProfile {
+  id?: string;
+  fullName: string;
+  professionalTitle: string;
+  email: string;
+  phone: string;
+  address: string;
+  website?: string;
+  linkedin?: string;
+  github?: string;
+  photoUrl?: string;
+  photoShape?: 'circle' | 'square' | 'rounded' | 'none';
+  careerObjective?: string;
+  professionalSummary?: string;
+  skills: string[];
+  computerSkills?: string[];
+  languages: string[];
+  education: EducationItem[];
+  experience: ExperienceItem[];
+  projects?: ProjectItem[];
+  certifications?: CertificationItem[];
+  personalInfo?: PersonalInfo;
+  references?: ReferenceItem[];
+}
+
+export type ActiveView = 'home' | 'templates' | 'cv-builder' | 'doc-builder' | 'my-docs' | 'dashboard' | 'admin' | 'profile';
+

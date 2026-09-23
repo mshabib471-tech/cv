@@ -7,12 +7,14 @@ interface BangladeshiStandardCVProps {
   setCV: React.Dispatch<React.SetStateAction<CVData>>;
   language: Language;
   pageNum: number;
+  onOpenAvatarPicker?: () => void;
 }
 
 export const BangladeshiStandardCV: React.FC<BangladeshiStandardCVProps> = ({
   cv,
   setCV,
   pageNum,
+  onOpenAvatarPicker,
 }) => {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,14 +103,14 @@ export const BangladeshiStandardCV: React.FC<BangladeshiStandardCVProps> = ({
         <div>
           {/* Top Centered Header: Resume of [FULL NAME] */}
           <div className="text-center mb-3">
-            <p className="text-[14px] text-black font-serif italic mb-0.5">`Resume of</p>
+            <p className="text-[14px] text-black font-serif italic mb-0.5">Resume of</p>
             <h1
               contentEditable
               suppressContentEditableWarning
               onBlur={(e) => handleUpdate('fullName', e.currentTarget.textContent || '')}
               className="text-[22px] font-extrabold tracking-wide uppercase text-black font-serif outline-none border-b border-transparent hover:border-blue-400 focus:border-blue-600 inline-block px-2"
             >
-              {cv.fullName || 'HABIBUR RAHMAN'}`
+              {cv.fullName || 'HABIBUR RAHMAN'}
             </h1>
           </div>
 
@@ -122,10 +124,10 @@ export const BangladeshiStandardCV: React.FC<BangladeshiStandardCVProps> = ({
               className="hidden"
             />
             <div
-              onClick={() => photoInputRef.current?.click()}
+              onClick={() => (onOpenAvatarPicker ? onOpenAvatarPicker() : photoInputRef.current?.click())}
               className="relative group cursor-pointer border border-black bg-white p-0.5 shadow-xs"
               style={{ width: '130px', height: '160px' }}
-              title="Click to change photo"
+              title="Click to choose avatar or photo"
             >
               {cv.photoUrl ? (
                 <img
@@ -137,7 +139,7 @@ export const BangladeshiStandardCV: React.FC<BangladeshiStandardCVProps> = ({
               ) : (
                 <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center text-slate-400">
                   <Camera className="w-8 h-8 mb-1" />
-                  <span className="text-[10px]">Upload Photo</span>
+                  <span className="text-[10px]">Photo / Avatar</span>
                 </div>
               )}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium no-print">

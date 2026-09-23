@@ -8,6 +8,12 @@ export interface DownloadReadyEventDetail {
   pages?: { url: string; filename: string }[];
 }
 
+export interface PDFGenerationProgress {
+  progress: number; // 0 to 100
+  message: string;
+  stage: 'preparing' | 'rendering' | 'assembling' | 'saving' | 'complete' | 'error';
+}
+
 /**
  * Fallback image placeholder if an external image cannot be loaded due to CORS
  */
@@ -65,8 +71,15 @@ export function triggerFileDownload(urlOrBlob: Blob | string, filename: string):
  */
 export async function generateAndDownloadPDF(
   elementIdOrSelector: string,
-  filename = 'SmartCV_Document.pdf'
+  filename = 'SmartCV_Document.pdf',
+  onProgress?: (progress: PDFGenerationProgress) => void
 ): Promise<boolean> {
+  onProgress?.({
+    progress: 5,
+    message: 'Initializing high-resolution PDF exporter...',
+    stage: 'preparing',
+  });
+
   let container = document.getElementById(elementIdOrSelector);
   if (!container) {
     container = document.querySelector<HTMLElement>(elementIdOrSelector);
@@ -80,6 +93,11 @@ export async function generateAndDownloadPDF(
 
   if (!container) {
     console.error(`Element ${elementIdOrSelector} not found for PDF export.`);
+    onProgress?.({
+      progress: 0,
+      message: 'Document container element could not be found.',
+      stage: 'error',
+    });
     return false;
   }
 
@@ -119,6 +137,12 @@ export async function generateAndDownloadPDF(
   document.head.appendChild(tempStyle);
 
   try {
+    onProgress?.({
+      progress: 15,
+      message: 'Loading fonts and preparing print canvas...',
+      stage: 'preparing',
+    });
+
     // Wait for fonts with timeout
     if (document.fonts && document.fonts.ready) {
       await Promise.race([
@@ -142,6 +166,13 @@ export async function generateAndDownloadPDF(
 
     for (let i = 0; i < pages.length; i++) {
       const pageEl = pages[i];
+      const pageProgress = Math.round(20 + (i / pages.length) * 60);
+
+      onProgress?.({
+        progress: pageProgress,
+        message: `Rendering page ${i + 1} of ${pages.length} in 2x print quality...`,
+        stage: 'rendering',
+      });
 
       const dataUrl = await htmlToImage.toJpeg(pageEl, {
         quality: 0.95,
@@ -170,13 +201,37 @@ export async function generateAndDownloadPDF(
       pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
     }
 
+    onProgress?.({
+      progress: 88,
+      message: 'Assembling document pages into vector PDF...',
+      stage: 'assembling',
+    });
+
     const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
     const pdfBlob = pdf.output('blob');
+
+    onProgress?.({
+      progress: 96,
+      message: 'Finalizing PDF file and initiating download...',
+      stage: 'saving',
+    });
+
     triggerFileDownload(pdfBlob, cleanFilename);
 
+    onProgress?.({
+      progress: 100,
+      message: 'PDF generated successfully!',
+      stage: 'complete',
+    });
+
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('PDF Generation error:', error);
+    onProgress?.({
+      progress: 0,
+      message: error?.message || 'Failed to generate PDF.',
+      stage: 'error',
+    });
     return false;
   } finally {
     container.style.transform = savedTransform;
@@ -187,14 +242,21 @@ export async function generateAndDownloadPDF(
   }
 }
 
+export interface JPEGExportResult {
+  success: boolean;
+  dataUrl?: string;
+  filename?: string;
+}
+
 /**
  * Exports each page of the document as high-resolution JPG / JPEG image(s).
  * Multi-page documents download individual page images.
+ * Returns result object with dataUrl and filename for preview and re-download.
  */
 export async function exportDocumentAsJPEG(
   elementIdOrSelector: string,
   baseFilename = 'SmartCV'
-): Promise<boolean> {
+): Promise<JPEGExportResult> {
   let container = document.getElementById(elementIdOrSelector);
   if (!container) {
     container = document.querySelector<HTMLElement>(elementIdOrSelector);
@@ -208,7 +270,7 @@ export async function exportDocumentAsJPEG(
 
   if (!container) {
     console.error(`Element ${elementIdOrSelector} not found for JPEG export.`);
-    return false;
+    return { success: false };
   }
 
   let pages: HTMLElement[] = [];
@@ -259,6 +321,9 @@ export async function exportDocumentAsJPEG(
         .replace(/[\s\W]+/g, '_')
         .replace(/^_+|_+$/g, '') || 'SmartDocument';
 
+    let lastDataUrl = '';
+    let lastFilename = '';
+
     for (let i = 0; i < pages.length; i++) {
       const pageEl = pages[i];
 
@@ -284,6 +349,8 @@ export async function exportDocumentAsJPEG(
 
       const pageSuffix = pages.length > 1 ? `_Page_${i + 1}` : '';
       const imageFilename = `${cleanBaseName}${pageSuffix}.jpg`;
+      lastDataUrl = dataUrl;
+      lastFilename = imageFilename;
 
       // Convert data URL to Blob for reliable cross-browser download
       const response = await fetch(dataUrl);
@@ -295,10 +362,14 @@ export async function exportDocumentAsJPEG(
       }
     }
 
-    return true;
+    return {
+      success: true,
+      dataUrl: lastDataUrl,
+      filename: lastFilename,
+    };
   } catch (error) {
     console.error('JPEG Export error:', error);
-    return false;
+    return { success: false };
   } finally {
     container.style.transform = savedTransform;
     container.style.transformOrigin = savedTransformOrigin;

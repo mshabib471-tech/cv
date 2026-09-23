@@ -34,6 +34,7 @@ interface A4DocumentProps {
   onUpdateField?: (field: keyof CVData, value: any) => void;
   onUpdateNested?: (path: string, value: any) => void;
   isEditable?: boolean;
+  onOpenAvatarPicker?: () => void;
 }
 
 export const A4Document: React.FC<A4DocumentProps> = ({
@@ -43,6 +44,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({
   onUpdateField,
   onUpdateNested,
   isEditable = true,
+  onOpenAvatarPicker,
 }) => {
   const { design } = cv;
   const primaryColor = design?.primaryColor || '#2563EB';
@@ -288,11 +290,13 @@ export const A4Document: React.FC<A4DocumentProps> = ({
   const isTwoColumn =
     cv.templateId?.includes('corporate') ||
     cv.templateId?.includes('two-column') ||
+    cv.templateId?.includes('executive') ||
     cv.design?.headerStyle === 'sidebar';
 
   const isMinimalATS =
     cv.templateId?.includes('ats') ||
     cv.templateId === 'cv-minimal' ||
+    cv.templateId?.includes('student') ||
     cv.design?.headerStyle === 'minimal' ||
     cv.isATS;
 
@@ -303,51 +307,60 @@ export const A4Document: React.FC<A4DocumentProps> = ({
 
   return (
     <div
-      id="cv-printable-document-container"
-      className="flex flex-col items-center gap-8 print:gap-0 printable-document-container transition-transform origin-top"
+      className="cv-scale-outer-viewport flex justify-center transition-[width] duration-150 mx-auto"
       style={{
-        transform: `scale(${scale})`,
-        transformOrigin: 'top center',
+        width: `${210 * scale}mm`,
+        minWidth: `${210 * scale}mm`,
       }}
     >
-      {/* Hidden File Input for Direct Photo Upload */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handlePhotoUpload}
-        accept="image/*"
-        className="hidden"
-      />
+      <div
+        id="cv-printable-document-container"
+        className="flex flex-col items-center gap-8 print:gap-0 printable-document-container transition-transform origin-top"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'top center',
+          width: '210mm',
+        }}
+      >
+        {/* Hidden File Input for Direct Photo Upload */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handlePhotoUpload}
+          accept="image/*"
+          className="hidden"
+        />
 
-      {pages.map((pageNum) => (
-        <div
-          key={pageNum}
-          id={pageNum === 1 ? 'cv-printable-document' : `cv-printable-document-page-${pageNum}`}
-          className={`a4-page shadow-2xl print:shadow-none mx-auto text-slate-800 ${fontClass} relative flex flex-col justify-between overflow-hidden bg-white`}
-          style={{
-            width: '210mm',
-            minHeight: '297mm',
-            backgroundColor: '#ffffff',
-          }}
-        >
-          {isBangladeshiStandard ? (
-            <BangladeshiStandardCV
-              cv={cv}
-              setCV={
-                setCV ||
-                ((updater) => {
-                  if (typeof updater === 'function') {
-                    const next = updater(cv);
-                    Object.keys(next).forEach((k) =>
-                      onUpdateField?.(k as keyof CVData, (next as any)[k])
-                    );
-                  }
-                })
-              }
-              language={cv.language || 'en'}
-              pageNum={pageNum}
-            />
-          ) : isTwoColumn ? (
+        {pages.map((pageNum) => (
+          <div
+            key={pageNum}
+            id={pageNum === 1 ? 'cv-printable-document' : `cv-printable-document-page-${pageNum}`}
+            className={`a4-page shadow-2xl print:shadow-none mx-auto text-slate-800 ${fontClass} relative flex flex-col justify-between overflow-hidden bg-white`}
+            style={{
+              width: '210mm',
+              minHeight: '297mm',
+              backgroundColor: '#ffffff',
+            }}
+          >
+            {isBangladeshiStandard ? (
+              <BangladeshiStandardCV
+                cv={cv}
+                setCV={
+                  setCV ||
+                  ((updater) => {
+                    if (typeof updater === 'function') {
+                      const next = updater(cv);
+                      Object.keys(next).forEach((k) =>
+                        onUpdateField?.(k as keyof CVData, (next as any)[k])
+                      );
+                    }
+                  })
+                }
+                language={cv.language || 'en'}
+                pageNum={pageNum}
+                onOpenAvatarPicker={onOpenAvatarPicker}
+              />
+            ) : isTwoColumn ? (
             <CorporateTwoColumnCV
               cv={cv}
               isEditable={isEditable}
@@ -1309,6 +1322,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 };

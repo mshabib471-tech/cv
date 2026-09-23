@@ -23,6 +23,7 @@ import { TEMPLATES_DATA } from '../data/templates';
 import { StorageService } from '../lib/storage';
 import { generateAndDownloadPDF, exportDocumentAsJPEG, printDocument, DownloadReadyEventDetail } from '../lib/pdf';
 import { useTranslation } from '../lib/i18n';
+import { useToast } from '../context/ToastContext';
 
 interface DocumentBuilderProps {
   language: Language;
@@ -66,6 +67,10 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   const [isGeneratingJPEG, setIsGeneratingJPEG] = useState<boolean>(false);
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<DownloadReadyEventDetail | null>(null);
+
+  const { toast, updateToast } = useToast();
+  const activePdfToastIdRef = useRef<string | null>(null);
+  const activeJpegToastIdRef = useRef<string | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -73,11 +78,23 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
       const customEvt = e as CustomEvent<DownloadReadyEventDetail>;
       if (customEvt.detail) {
         setDownloadReadyInfo(customEvt.detail);
+        if (activePdfToastIdRef.current) {
+          updateToast(activePdfToastIdRef.current, {
+            downloadUrl: customEvt.detail.url,
+            filename: customEvt.detail.filename,
+          });
+        }
+        if (activeJpegToastIdRef.current) {
+          updateToast(activeJpegToastIdRef.current, {
+            downloadUrl: customEvt.detail.url,
+            filename: customEvt.detail.filename,
+          });
+        }
       }
     };
     window.addEventListener('smartdoc-download-ready', handleReady);
     return () => window.removeEventListener('smartdoc-download-ready', handleReady);
-  }, []);
+  }, [updateToast]);
 
   const handleUpdate = (updatedFields: Partial<DocumentData>) => {
     setIsSaving(true);
@@ -148,11 +165,49 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
 
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
+    const filename = `${doc.title.replace(/\s+/g, '_')}_SmartDoc.pdf`;
+    const toastId = toast.loading('Preparing PDF...', {
+      filename,
+      progress: 10,
+      message: language === 'bn' ? 'হাই-রেজোলিউশন পেজ রেন্ডার করা হচ্ছে...' : 'Rendering high-resolution document pages...',
+    });
+    activePdfToastIdRef.current = toastId;
+
     try {
-      const filename = `${doc.title.replace(/\s+/g, '_')}_SmartDoc.pdf`;
-      await generateAndDownloadPDF('general-doc-printable', filename);
-    } catch (err) {
+      const success = await generateAndDownloadPDF(
+        'general-doc-printable',
+        filename,
+        (prog) => {
+          updateToast(toastId, {
+            progress: prog.progress,
+            message: prog.message,
+          });
+        }
+      );
+      if (success) {
+        updateToast(toastId, {
+          type: 'success',
+          title: 'Download successful!',
+          message: language === 'bn'
+            ? 'আপনার ফাইলটি সফলভাবে ডাউনলোড হয়েছে।'
+            : 'Your document was compiled and downloaded successfully.',
+          progress: 100,
+          filename,
+        });
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Error occurred',
+          message: language === 'bn' ? 'পিডিএফ তৈরিতে সমস্যা হয়েছে।' : 'Failed to generate PDF document.',
+        });
+      }
+    } catch (err: any) {
       console.error('PDF generation error:', err);
+      updateToast(toastId, {
+        type: 'error',
+        title: 'Error occurred',
+        message: err?.message || 'Error occurred while generating PDF.',
+      });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -160,11 +215,38 @@ export const DocumentBuilder: React.FC<DocumentBuilderProps> = ({
 
   const handleDownloadJPEG = async () => {
     setIsGeneratingJPEG(true);
+    const filename = `${doc.title.replace(/\s+/g, '_')}_SmartDoc`;
+    const toastId = toast.loading('Preparing Image...', {
+      filename: `${filename}.jpg`,
+      progress: 15,
+      message: language === 'bn' ? 'জেপিজি ছবি প্রস্তুত হচ্ছে...' : 'Rendering high-resolution image...',
+    });
+    activeJpegToastIdRef.current = toastId;
+
     try {
-      const filename = `${doc.title.replace(/\s+/g, '_')}_SmartDoc`;
-      await exportDocumentAsJPEG('general-doc-printable', filename);
-    } catch (err) {
+      const res = await exportDocumentAsJPEG('general-doc-printable', filename);
+      if (res.success) {
+        updateToast(toastId, {
+          type: 'success',
+          title: 'Download successful!',
+          message: language === 'bn' ? 'জেপিজি ছবি সফলভাবে তৈরি হয়েছে!' : 'Image Download Ready!',
+          progress: 100,
+          filename: `${filename}.jpg`,
+        });
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Error occurred',
+          message: 'Failed to generate image.',
+        });
+      }
+    } catch (err: any) {
       console.error('JPEG generation error:', err);
+      updateToast(toastId, {
+        type: 'error',
+        title: 'Error occurred',
+        message: err?.message || 'JPEG Generation failed.',
+      });
     } finally {
       setIsGeneratingJPEG(false);
     }

@@ -1,36 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+  Home,
+  BarChart2,
+  FileText,
   Settings,
+  Search,
+  ChevronDown,
+  Layers,
+  ArrowLeft,
+  ExternalLink,
   Plus,
   Trash2,
   Edit,
   Save,
   CheckCircle2,
-  FileText,
-  Layers,
-  Palette,
-  Eye,
-  ExternalLink,
   Globe,
   MapPin,
   Phone,
   Mail,
   Clock,
+  Sparkles,
+  LogOut,
 } from 'lucide-react';
-import { DocumentTemplate, TemplateCategory, Language } from '../types';
+import { Language, DocumentTemplate, TemplateCategory } from '../types';
 import { TEMPLATES_DATA } from '../data/templates';
-import { StorageService } from '../lib/storage';
+import {
+  auth,
+  signOut,
+  onAuthStateChanged,
+  AUTHORIZED_ADMIN_EMAIL,
+  isAuthorizedAdmin,
+} from '../lib/firebase';
+import { AdminLogin } from './admin/AdminLogin';
+import { AdminHome } from './admin/AdminHome';
+import { AdminAnalytics } from './admin/AdminAnalytics';
+import { AdminReports } from './admin/AdminReports';
+import { AdminSetting } from './admin/AdminSetting';
 
 interface AdminPanelProps {
   language: Language;
+  onBackToApp?: () => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ language }) => {
+type AdminTab = 'home' | 'analytics' | 'reports' | 'setting' | 'templates';
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ language, onBackToApp }) => {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('admin_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return isAuthorizedAdmin(parsed.email);
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
+
+  const [adminUser, setAdminUser] = useState<{
+    email: string;
+    displayName: string;
+    photoURL?: string;
+  }>(() => {
+    try {
+      const saved = localStorage.getItem('admin_auth_user');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      email: AUTHORIZED_ADMIN_EMAIL,
+      displayName: 'immi memo',
+      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    };
+  });
+
+  // Active Tab inside Admin
+  const [activeTab, setActiveTab] = useState<AdminTab>('home');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Template Management State
   const [templates, setTemplates] = useState<DocumentTemplate[]>(TEMPLATES_DATA);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
-
   const [form, setForm] = useState<Partial<DocumentTemplate>>({
     name: '',
     category: 'CV',
@@ -42,6 +100,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ language }) => {
     isATS: true,
   });
 
+  // Firebase auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && isAuthorizedAdmin(user.email)) {
+        setIsAuthenticated(true);
+        setAdminUser({
+          email: user.email || AUTHORIZED_ADMIN_EMAIL,
+          displayName: user.displayName || 'Habibur Rahman',
+          photoURL: user.photoURL || undefined,
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = (email: string, displayName?: string, photoURL?: string) => {
+    setIsAuthenticated(true);
+    setAdminUser({
+      email,
+      displayName: displayName || 'Habibur Rahman',
+      photoURL,
+    });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Firebase signout:', e);
+    }
+    localStorage.removeItem('admin_auth_user');
+    setIsAuthenticated(false);
+  };
+
+  // Template Handlers
   const handleSaveTemplate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.description) {
@@ -50,13 +143,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ language }) => {
     }
 
     if (editingId) {
-      // Update existing
       setTemplates((prev) =>
         prev.map((t) => (t.id === editingId ? ({ ...t, ...form } as DocumentTemplate) : t))
       );
       setStatusMessage(`Template "${form.name}" updated successfully!`);
     } else {
-      // Add new
       const newTmpl: DocumentTemplate = {
         id: 'custom-tmpl-' + Date.now(),
         name: form.name || 'New Template',
@@ -65,14 +156,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ language }) => {
         pageCount: form.pageCount || 1,
         style: (form.style as any) || 'Modern',
         description: form.description || '',
-        accentColor: form.accentColor || '#2563EB',
+        accentColor: form.accentColor || '#F5921E',
         isATS: form.isATS ?? true,
       };
       setTemplates((prev) => [newTmpl, ...prev]);
       setStatusMessage(`New template "${newTmpl.name}" registered into marketplace!`);
     }
 
-    // Reset
     setForm({
       name: '',
       category: 'CV',
@@ -80,363 +170,400 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ language }) => {
       pageCount: 1,
       style: 'Modern',
       description: '',
-      accentColor: '#2563EB',
+      accentColor: '#F5921E',
       isATS: true,
     });
     setEditingId(null);
     setShowAddForm(false);
-
     setTimeout(() => setStatusMessage(''), 4000);
   };
 
-  const handleEditClick = (tmpl: DocumentTemplate) => {
-    setEditingId(tmpl.id);
-    setForm(tmpl);
-    setShowAddForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // If NOT authenticated, show the Private Admin Login Screen (Screenshot 5)
+  if (!isAuthenticated) {
+    return (
+      <AdminLogin
+        onSuccess={handleLoginSuccess}
+        onBackToApp={onBackToApp}
+      />
+    );
+  }
 
-  const handleDeleteClick = (id: string) => {
-    if (confirm('Are you sure you want to delete this template from the repository?')) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
-      setStatusMessage('Template deleted.');
-      setTimeout(() => setStatusMessage(''), 3000);
-    }
-  };
-
+  // If Authenticated as tec.habiburrahman@gmail.com, show Full Admin Dashboard (Screenshots 1-4)
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="min-h-screen bg-[#FFF9F3] text-slate-800 flex font-sans">
+      {/* Sidebar (Matches Screenshots 1-4) */}
+      <aside className="w-56 sm:w-64 bg-[#FFF9F3] border-r border-[#FEEAD4] flex flex-col justify-between p-5 shrink-0 hidden md:flex min-h-screen sticky top-0">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-card border border-blue-200 text-xs font-semibold text-blue-700 mb-2">
-            <Settings className="w-3.5 h-3.5 text-blue-600" />
-            <span>Admin Management Console</span>
+          {/* Top Logo */}
+          <div className="flex items-center gap-2 mb-8 px-2">
+            <div className="w-4 h-4 rounded-full bg-[#F5921E]" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#FB923C]" />
+            <span className="font-black text-xl text-slate-900 tracking-tight ml-1">
+              Dashboard
+            </span>
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Template & Document Repository Manager
-          </h1>
-          <p className="text-slate-600 text-sm mt-1">
-            Add new CV templates, official applications, or update styles, ATS parameters, and metadata.
-          </p>
+
+          {/* Navigation Items */}
+          <nav className="space-y-1.5">
+            <button
+              id="admin-nav-home"
+              onClick={() => setActiveTab('home')}
+              className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+                activeTab === 'home'
+                  ? 'bg-[#F5921E] text-white shadow-md shadow-[#F5921E]/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+              }`}
+            >
+              <Home className="w-4 h-4 shrink-0" />
+              <span>Home</span>
+            </button>
+
+            <button
+              id="admin-nav-analytics"
+              onClick={() => setActiveTab('analytics')}
+              className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+                activeTab === 'analytics'
+                  ? 'bg-[#F5921E] text-white shadow-md shadow-[#F5921E]/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+              }`}
+            >
+              <BarChart2 className="w-4 h-4 shrink-0" />
+              <span>Analytics</span>
+            </button>
+
+            <button
+              id="admin-nav-reports"
+              onClick={() => setActiveTab('reports')}
+              className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+                activeTab === 'reports'
+                  ? 'bg-[#F5921E] text-white shadow-md shadow-[#F5921E]/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+              }`}
+            >
+              <FileText className="w-4 h-4 shrink-0" />
+              <span>Reports</span>
+            </button>
+
+            <button
+              id="admin-nav-setting"
+              onClick={() => setActiveTab('setting')}
+              className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+                activeTab === 'setting'
+                  ? 'bg-[#F5921E] text-white shadow-md shadow-[#F5921E]/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+              }`}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              <span>Setting</span>
+            </button>
+
+            <div className="pt-3 my-2 border-t border-[#FEDEBF]/70" />
+
+            <button
+              id="admin-nav-templates"
+              onClick={() => setActiveTab('templates')}
+              className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+                activeTab === 'templates'
+                  ? 'bg-[#F5921E] text-white shadow-md shadow-[#F5921E]/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+              }`}
+            >
+              <Layers className="w-4 h-4 shrink-0" />
+              <span>CV Templates</span>
+            </button>
+
+            {onBackToApp && (
+              <button
+                onClick={onBackToApp}
+                className="w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:text-slate-900 hover:bg-white/80 transition"
+              >
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+                <span>Return to CV Maker</span>
+              </button>
+            )}
+          </nav>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingId(null);
-            setForm({
-              name: '',
-              category: 'CV',
-              language: 'English',
-              pageCount: 1,
-              style: 'Modern',
-              description: '',
-              accentColor: '#2563EB',
-              isATS: true,
-            });
-            setShowAddForm(!showAddForm);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{showAddForm ? 'Close Form' : 'Register New Template'}</span>
-        </button>
-      </div>
-
-      {/* External Admin Website Card */}
-      <div className="glass-card p-6 sm:p-7 rounded-3xl border border-blue-200/80 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-white flex flex-col gap-6 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
-              <Globe className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/80 px-2.5 py-0.5 rounded-md">
-                  Official Admin Portal
+        {/* Bottom Profile (Matches Screenshots 1-4) */}
+        <div className="pt-4 border-t border-[#FEDEBF]/70">
+          <div className="flex items-center justify-between p-2 rounded-2xl hover:bg-white/60 transition cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <img
+                src={
+                  adminUser.photoURL ||
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+                }
+                alt="Admin Avatar"
+                className="w-9 h-9 rounded-full object-cover border border-[#FEEAD4]"
+              />
+              <div className="overflow-hidden">
+                <span className="font-bold text-xs text-slate-900 block truncate">
+                  {adminUser.displayName || 'immi memo'}
                 </span>
-                <span className="text-xs text-slate-500 font-medium">https://habibifix.vercel.app/</span>
+                <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">
+                  Admin
+                </span>
               </div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1">
-                HabibiFix Admin & Management Center
-              </h2>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Centralized production administration, template deployments, and account control.
-              </p>
             </div>
-          </div>
-
-          <a
-            id="admin-open-habibifix-website-btn"
-            href="https://habibifix.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 active:scale-95 transition-all shrink-0"
-          >
-            <span>Open Admin Website (https://habibifix.vercel.app/)</span>
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        </div>
-
-        {/* Contact & Location Details Grid */}
-        <div className="pt-4 border-t border-blue-200/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-          <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/70 border border-blue-100/80">
-            <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Our Location</span>
-              <p className="text-slate-700 font-medium mt-0.5 leading-snug">House - Habibur Rahman, Gachbaria</p>
-              <p className="text-slate-500 text-[11px]">Chattogram, Bangladesh</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/70 border border-emerald-100/80">
-            <Phone className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Phone Number</span>
-              <a href="tel:+8801868461577" className="text-slate-800 hover:text-blue-600 font-semibold block mt-0.5">
-                +880 1868 461577
-              </a>
-              <span className="text-slate-500 text-[11px]">Direct Line / WhatsApp</span>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/70 border border-indigo-100/80">
-            <Mail className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Email Address</span>
-              <a href="mailto:tec.habiburrahman@gmail.com" className="text-slate-800 hover:text-blue-600 font-semibold block mt-0.5 break-all">
-                tec.habiburrahman@gmail.com
-              </a>
-              <span className="text-slate-500 text-[11px]">Admin & Inquiries</span>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/70 border border-purple-100/80">
-            <Clock className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Working Hours</span>
-              <span className="text-slate-800 font-semibold block mt-0.5">Always Open Online</span>
-              <span className="text-emerald-600 font-medium text-[11px] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Chat support available 24/7
-              </span>
-            </div>
+            <button
+              onClick={handleLogout}
+              title="Log Out"
+              className="p-1 hover:text-rose-600 text-slate-400 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
-      </div>
+      </aside>
 
-      {statusMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{statusMessage}</span>
-        </div>
-      )}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navbar / Search Bar (Matches Screenshots 1-4) */}
+        <header className="bg-[#FFF9F3] border-b border-[#FEEAD4]/60 px-5 sm:px-8 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-20">
+          {/* Mobile Menu Button */}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700"
+            >
+              <div className="w-4 h-0.5 bg-slate-800 mb-1" />
+              <div className="w-4 h-0.5 bg-slate-800 mb-1" />
+              <div className="w-4 h-0.5 bg-slate-800" />
+            </button>
+            <span className="font-black text-sm text-slate-900">Dashboard</span>
+          </div>
 
-      {/* Add / Edit Form Modal or Card */}
-      {showAddForm && (
-        <div className="glass-card p-6 rounded-3xl border border-blue-200 shadow-md">
-          <h3 className="font-bold text-lg text-slate-900 mb-4">
-            {editingId ? 'Edit Template Definition' : 'Register New Template'}
-          </h3>
-          <form onSubmit={handleSaveTemplate} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Template Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Modern Executive CV 2026"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-blue-500"
-                />
-              </div>
+          {/* Search Input (Matches Screenshots 1-4) */}
+          <div className="flex-1 max-w-xl relative">
+            <input
+              type="text"
+              placeholder="Search......"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-full border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F5921E]/30 focus:border-[#F5921E] shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+          </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Category</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value as TemplateCategory })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none bg-white"
-                >
-                  <option value="CV">CV</option>
-                  <option value="Resume">Resume</option>
-                  <option value="Marriage CV">Marriage CV (বিবাহের বায়োডাটা)</option>
-                  <option value="Application">Application</option>
-                  <option value="Experience Certificate">Experience Certificate</option>
-                  <option value="Joining Letter">Joining Letter</option>
-                  <option value="Resignation Letter">Resignation Letter</option>
-                  <option value="Certificate">Certificate</option>
-                  <option value="Money Receipt">Money Receipt</option>
-                  <option value="Question / Exam">Question / Exam</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
+          {/* Right Header Avatar */}
+          <div className="flex items-center gap-3">
+            <span className="hidden lg:inline text-xs font-semibold text-emerald-700 bg-emerald-100/70 px-2.5 py-1 rounded-full">
+              {AUTHORIZED_ADMIN_EMAIL}
+            </span>
+            <img
+              src={
+                adminUser.photoURL ||
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+              }
+              alt="Profile"
+              onClick={() => setActiveTab('setting')}
+              className="w-8 h-8 rounded-full object-cover border border-[#FEEAD4] cursor-pointer hover:ring-2 hover:ring-[#F5921E] transition"
+            />
+          </div>
+        </header>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Language</label>
-                <select
-                  value={form.language}
-                  onChange={(e) => setForm({ ...form, language: e.target.value as 'English' | 'বাংলা' })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none bg-white"
-                >
-                  <option value="English">English</option>
-                  <option value="বাংলা">বাংলা (Bangla)</option>
-                </select>
-              </div>
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-b border-slate-200 p-4 space-y-2">
+            <button
+              onClick={() => { setActiveTab('home'); setMobileMenuOpen(false); }}
+              className={`w-full text-left px-3 py-2 rounded-lg font-bold text-xs ${activeTab === 'home' ? 'bg-[#F5921E] text-white' : 'text-slate-700'}`}
+            >
+              Home
+            </button>
+            <button
+              onClick={() => { setActiveTab('analytics'); setMobileMenuOpen(false); }}
+              className={`w-full text-left px-3 py-2 rounded-lg font-bold text-xs ${activeTab === 'analytics' ? 'bg-[#F5921E] text-white' : 'text-slate-700'}`}
+            >
+              Analytics
+            </button>
+            <button
+              onClick={() => { setActiveTab('reports'); setMobileMenuOpen(false); }}
+              className={`w-full text-left px-3 py-2 rounded-lg font-bold text-xs ${activeTab === 'reports' ? 'bg-[#F5921E] text-white' : 'text-slate-700'}`}
+            >
+              Reports
+            </button>
+            <button
+              onClick={() => { setActiveTab('setting'); setMobileMenuOpen(false); }}
+              className={`w-full text-left px-3 py-2 rounded-lg font-bold text-xs ${activeTab === 'setting' ? 'bg-[#F5921E] text-white' : 'text-slate-700'}`}
+            >
+              Setting
+            </button>
+            <button
+              onClick={() => { setActiveTab('templates'); setMobileMenuOpen(false); }}
+              className={`w-full text-left px-3 py-2 rounded-lg font-bold text-xs ${activeTab === 'templates' ? 'bg-[#F5921E] text-white' : 'text-slate-700'}`}
+            >
+              CV Templates
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full text-left px-3 py-2 rounded-lg font-bold text-xs text-rose-600"
+            >
+              Log Out
+            </button>
+          </div>
+        )}
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Target Page Count</label>
-                <select
-                  value={form.pageCount}
-                  onChange={(e) => setForm({ ...form, pageCount: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none bg-white"
-                >
-                  <option value={1}>1 Page</option>
-                  <option value={2}>2 Pages</option>
-                  <option value={3}>3 Pages</option>
-                  <option value={4}>4 Pages</option>
-                  <option value={5}>5 Pages</option>
-                </select>
-              </div>
+        {/* View Switcher Container */}
+        <main className="flex-1 p-5 sm:p-8 max-w-6xl w-full mx-auto">
+          {activeTab === 'home' && (
+            <AdminHome adminName={adminUser.displayName || 'Immi'} />
+          )}
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Design Style</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Modern, Minimal, Corporate, Traditional"
-                  value={form.style}
-                  onChange={(e) => setForm({ ...form, style: e.target.value as any })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-blue-500"
-                />
-              </div>
+          {activeTab === 'analytics' && (
+            <AdminAnalytics />
+          )}
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Primary Color Theme</label>
-                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 py-1">
-                  <input
-                    type="color"
-                    value={form.accentColor}
-                    onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
-                    className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent"
-                  />
-                  <span className="font-mono text-xs">{form.accentColor}</span>
+          {activeTab === 'reports' && (
+            <AdminReports />
+          )}
+
+          {activeTab === 'setting' && (
+            <AdminSetting
+              adminName={adminUser.displayName || 'immi memo'}
+              adminEmail={adminUser.email || AUTHORIZED_ADMIN_EMAIL}
+              adminPhoto={adminUser.photoURL}
+              onLogout={handleLogout}
+              onOpenTemplates={() => setActiveTab('templates')}
+            />
+          )}
+
+          {/* Templates & CMS Tab */}
+          {activeTab === 'templates' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                    CV Templates Manager
+                  </h1>
+                  <p className="text-slate-500 text-xs sm:text-sm mt-1 font-medium">
+                    Create, update, and manage official resume templates.
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="px-4 py-2 bg-[#F5921E] hover:bg-[#ea8615] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 active:scale-95 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{showAddForm ? 'Close Form' : 'Add New Template'}</span>
+                </button>
               </div>
-            </div>
 
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Description & Scope</label>
-              <textarea
-                rows={2}
-                required
-                placeholder="Short description of the template purpose and features..."
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-blue-500"
-              />
-            </div>
+              {statusMessage && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{statusMessage}</span>
+                </div>
+              )}
 
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="isATS"
-                checked={form.isATS}
-                onChange={(e) => setForm({ ...form, isATS: e.target.checked })}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <label htmlFor="isATS" className="font-medium text-slate-700 cursor-pointer">
-                Mark as ATS-Friendly Standard (Recruiter Verified)
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 shadow-xs"
-              >
-                <Save className="w-4 h-4" />
-                <span>{editingId ? 'Save Changes' : 'Create Template'}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Templates Management Table */}
-      <div className="glass-card rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-slate-900">
-            Registered Templates Repository ({templates.length})
-          </h3>
-          <span className="text-xs text-slate-500">Live Database</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
-                <th className="p-3">Color</th>
-                <th className="p-3">Template Name</th>
-                <th className="p-3">Category</th>
-                <th className="p-3">Language</th>
-                <th className="p-3">Pages</th>
-                <th className="p-3">Style</th>
-                <th className="p-3">ATS</th>
-                <th className="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {templates.map((tmpl) => (
-                <tr key={tmpl.id} className="hover:bg-slate-50/70 transition">
-                  <td className="p-3">
-                    <div
-                      className="w-5 h-5 rounded-md shadow-2xs border border-white"
-                      style={{ backgroundColor: tmpl.accentColor }}
-                    />
-                  </td>
-                  <td className="p-3 font-semibold text-slate-900">{tmpl.name}</td>
-                  <td className="p-3">{tmpl.category}</td>
-                  <td className="p-3">{tmpl.language}</td>
-                  <td className="p-3">{tmpl.pageCount}P</td>
-                  <td className="p-3">{tmpl.style}</td>
-                  <td className="p-3">
-                    {tmpl.isATS ? (
-                      <span className="text-emerald-600 font-bold">Yes</span>
-                    ) : (
-                      <span className="text-slate-400">Standard</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+              {/* Add / Edit Form */}
+              {showAddForm && (
+                <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="font-bold text-base text-slate-900">
+                    {editingId ? 'Edit Template Definition' : 'Register New Template'}
+                  </h3>
+                  <form onSubmit={handleSaveTemplate} className="space-y-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="font-semibold text-slate-700 block mb-1">Template Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-semibold text-slate-700 block mb-1">Category</label>
+                        <select
+                          value={form.category}
+                          onChange={(e) => setForm({ ...form, category: e.target.value as any })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                        >
+                          <option value="CV">CV</option>
+                          <option value="Resume">Resume</option>
+                          <option value="Bio-data">Bio-data</option>
+                          <option value="Document">Document</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-semibold text-slate-700 block mb-1">Language</label>
+                        <select
+                          value={form.language}
+                          onChange={(e) => setForm({ ...form, language: e.target.value as any })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                        >
+                          <option value="English">English</option>
+                          <option value="বাংলা">বাংলা</option>
+                          <option value="Bilingual">Bilingual</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Description</label>
+                      <input
+                        type="text"
+                        required
+                        value={form.description}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
                       <button
-                        onClick={() => handleEditClick(tmpl)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Edit Template"
+                        type="button"
+                        onClick={() => setShowAddForm(false)}
+                        className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold"
                       >
-                        <Edit className="w-3.5 h-3.5" />
+                        Cancel
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(tmpl.id)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition"
-                        title="Delete Template"
+                        type="submit"
+                        className="px-5 py-2 rounded-xl bg-[#F5921E] text-white font-bold shadow-xs"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        Save Template
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Template Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templates.map((tmpl) => (
+                  <div key={tmpl.id} className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                          {tmpl.category}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-400">
+                          {tmpl.pageCount} page(s)
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-sm text-slate-900">{tmpl.name}</h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{tmpl.description}</p>
+                    </div>
+                    <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 font-medium">{tmpl.language}</span>
+                      <button
+                        onClick={() => {
+                          setEditingId(tmpl.id);
+                          setForm(tmpl);
+                          setShowAddForm(true);
+                        }}
+                        className="text-[#F5921E] hover:underline font-bold"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

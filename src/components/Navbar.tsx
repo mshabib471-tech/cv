@@ -13,9 +13,13 @@ import {
   PlusCircle,
   ExternalLink,
   Sparkles,
+  User,
+  LogIn,
 } from 'lucide-react';
 import { ActiveView, Language } from '../types';
 import { useTranslation } from '../lib/i18n';
+import { useAuth } from '../context/AuthContext';
+import { UserAuthModal } from './UserAuthModal';
 
 interface NavbarProps {
   activeView: ActiveView;
@@ -33,8 +37,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onQuickSearch,
 }) => {
   const t = useTranslation(language);
+  const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,6 +152,38 @@ export const Navbar: React.FC<NavbarProps> = ({
               <ExternalLink className="w-3 h-3 text-blue-600" />
             </a>
 
+            {/* User Profile / Login Button */}
+            {user ? (
+              <button
+                id="nav-user-profile-btn"
+                onClick={() => setActiveView('dashboard')}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-slate-800 text-xs font-bold transition shadow-2xs"
+                title="Go to Dashboard"
+              >
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || 'User'}
+                    className="w-5 h-5 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
+                    {(user.displayName || user.email || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="max-w-[80px] truncate">{user.displayName || user.email?.split('@')[0]}</span>
+              </button>
+            ) : (
+              <button
+                id="nav-login-btn"
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition"
+              >
+                <LogIn className="w-3.5 h-3.5 text-blue-600" />
+                <span>{language === 'bn' ? 'লগইন' : 'Login'}</span>
+              </button>
+            )}
+
             {/* Admin Panel Link */}
             <button
               id="nav-admin-btn"
@@ -232,6 +270,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{language === 'bn' ? 'স্পেশাল পার্টনার অফার (Smartlink)' : 'Special Partner Offers'}</span>
             </a>
 
+            {/* Mobile Auth Button */}
+            {user ? (
+              <button
+                onClick={() => {
+                  setActiveView('dashboard');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-blue-200 text-blue-700 bg-blue-50"
+              >
+                <User className="w-4 h-4" />
+                <span>{user.displayName || user.email || 'My Profile'} (Dashboard)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setShowAuthModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 bg-white"
+              >
+                <LogIn className="w-4 h-4 text-blue-600" />
+                <span>{language === 'bn' ? 'লগইন / অ্যাকাউন্ট তৈরি' : 'Login / Register'}</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setActiveView('admin');
@@ -254,6 +317,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       )}
+
+      {/* User Authentication Modal */}
+      <UserAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        language={language}
+      />
     </header>
   );
 };
